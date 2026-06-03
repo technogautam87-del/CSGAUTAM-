@@ -4,6 +4,7 @@ import { TimelineMilestone } from '../types';
 import { DynamicIcon } from './DynamicIcon';
 import { playBubbleSound, playSuccessChime } from '../audio';
 import { TRANSLATIONS } from '../translations';
+import { InteractiveAvatar } from './InteractiveAvatar';
 
 interface TimelineJourneyProps {
   milestones: TimelineMilestone[];
@@ -20,8 +21,57 @@ export const TimelineJourney: React.FC<TimelineJourneyProps> = ({
   
   const [selectedMilestone, setSelectedMilestone] = useState<TimelineMilestone | null>(null);
   const [hoveredYear, setHoveredYear] = useState<number | null>(null);
+  const [activeYear, setActiveYear] = useState<number>(sortedMilestones[0]?.year || 1998);
 
   const t = TRANSLATIONS[lang];
+
+  // Colorful styling setup for card categories
+  const getCardStyle = (category: string) => {
+    switch (category) {
+      case 'Birth':
+        return {
+          card: "bg-gradient-to-br from-amber-50/90 to-orange-100/30 hover:from-amber-100/90 hover:to-orange-200/40 border-amber-200 hover:border-amber-400 hover:shadow-xl hover:shadow-amber-100/40",
+          iconColor: "text-amber-500",
+          borderLeft: "border-l-4 border-amber-500",
+          accentText: "text-amber-600"
+        };
+      case 'Education':
+        return {
+          card: "bg-gradient-to-br from-emerald-50/90 to-teal-100/30 hover:from-emerald-100/90 hover:to-teal-200/40 border-emerald-200 hover:border-emerald-400 hover:shadow-xl hover:shadow-emerald-100/40",
+          iconColor: "text-emerald-500",
+          borderLeft: "border-l-4 border-emerald-500",
+          accentText: "text-emerald-600"
+        };
+      case 'Career':
+        return {
+          card: "bg-gradient-to-br from-sky-50/90 to-indigo-100/30 hover:from-sky-100/90 hover:to-indigo-200/40 border-sky-200 hover:border-sky-400 hover:shadow-xl hover:shadow-sky-100/40",
+          iconColor: "text-sky-500",
+          borderLeft: "border-l-4 border-indigo-500",
+          accentText: "text-indigo-600"
+        };
+      case 'Achievement':
+        return {
+          card: "bg-gradient-to-br from-purple-50/90 to-fuchsia-100/30 hover:from-purple-100/90 hover:to-fuchsia-200/40 border-purple-200 hover:border-purple-400 hover:shadow-xl hover:shadow-purple-100/40",
+          iconColor: "text-purple-500",
+          borderLeft: "border-l-4 border-purple-500",
+          accentText: "text-purple-600"
+        };
+      case 'Special Education':
+        return {
+          card: "bg-gradient-to-br from-pink-50/90 to-rose-100/30 hover:from-pink-100/90 hover:to-rose-200/40 border-pink-200 hover:border-pink-400 hover:shadow-xl hover:shadow-pink-100/40",
+          iconColor: "text-pink-500",
+          borderLeft: "border-l-4 border-pink-500",
+          accentText: "text-pink-600"
+        };
+      default:
+        return {
+          card: "bg-gradient-to-br from-slate-50/90 to-slate-100/30 hover:from-slate-100/90 hover:to-slate-200/40 border-slate-200 hover:border-slate-450 hover:shadow-xl hover:shadow-slate-100/40",
+          iconColor: "text-slate-500",
+          borderLeft: "border-l-4 border-slate-500",
+          accentText: "text-indigo-600"
+        };
+    }
+  };
 
   // Colorful tags for category badges
   const getCategoryColor = (category: string) => {
@@ -94,29 +144,11 @@ export const TimelineJourney: React.FC<TimelineJourneyProps> = ({
           {/* Vertical Spine Central Line */}
           <div className="absolute left-6 md:left-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-amber-400 via-teal-400 via-indigo-500 to-pink-500 rounded-full transform -translate-x-1/2" />
           
-          {/* Scrolling Flying Paper Airplane Visual Anchor */}
-          <div className="absolute left-6 md:left-1/2 top-[4%] -translate-x-1/2 -translate-y-1/2 z-20">
-            <motion.div
-              animate={{ 
-                y: [0, 8, 0],
-                rotate: [0, -10, 10, 0]
-              }}
-              transition={{
-                duration: 5,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-              className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center text-lg shadow-lg border border-indigo-400"
-              title="Birth 1998 Flight Center"
-            >
-              🛫
-            </motion.div>
-          </div>
-
           <div className="space-y-16">
             {sortedMilestones.map((ms, idx) => {
               const isEven = idx % 2 === 0;
               const isHovered = ms.year === hoveredYear;
+              const cardStyle = getCardStyle(ms.category);
 
               // Localized data
               const displayTitle = lang === 'hi' && ms.titleHi ? ms.titleHi : ms.title;
@@ -130,7 +162,10 @@ export const TimelineJourney: React.FC<TimelineJourneyProps> = ({
                   id={`milestone-${ms.id}`}
                   initial={{ opacity: 0, y: 30 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-15% 0px -15% 0px" }}
+                  viewport={{ once: true, margin: "-18% 0px -18% 0px" }}
+                  onViewportEnter={() => {
+                    setActiveYear(ms.year);
+                  }}
                   transition={{ duration: 0.5, delay: 0.05 }}
                   className={`relative flex flex-col md:flex-row items-stretch ${
                     isEven ? 'md:flex-row-reverse' : ''
@@ -142,19 +177,58 @@ export const TimelineJourney: React.FC<TimelineJourneyProps> = ({
 
                   {/* Central Node Circle representing the year */}
                   <div className="absolute left-6 md:left-1/2 transform -translate-x-1/2 z-10 flex flex-col items-center top-0">
+                    
+                    {/* The Interactive Flying Kung-Fu Panda that glides dynamically to the active year */}
+                    {activeYear === ms.year && (
+                      <motion.div
+                        layoutId="flying-airplane"
+                        className="absolute -top-20 z-25 flex flex-col items-center pointer-events-none animate-bounce"
+                        style={{ animationDuration: '4s' }}
+                        transition={{ type: 'spring', stiffness: 95, damping: 13 }}
+                      >
+                        <motion.div
+                          animate={{ 
+                            y: [0, -8, 0],
+                            rotate: [0, -6, 6, 0]
+                          }}
+                          transition={{
+                            duration: 2.2,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                          }}
+                          className="relative flex flex-col items-center"
+                        >
+                          <InteractiveAvatar
+                            pose="flying"
+                            size={72}
+                            lang={lang}
+                            className="drop-shadow-2xl hover:scale-110 transition-all"
+                          />
+                          <div className="absolute -bottom-1 text-[8px] font-black bg-gradient-to-r from-red-600 via-yellow-400 to-red-600 text-white px-2 py-0.5 rounded-full border border-white shadow-md uppercase tracking-wider scale-95 whitespace-nowrap">
+                            Po Flight 🐼🥋
+                          </div>
+                        </motion.div>
+                        <div className="w-3 h-3 bg-amber-500 rounded-full mt-2 animate-ping" />
+                      </motion.div>
+                    )}
+
                     <motion.button
                       onClick={() => {
                         setSelectedMilestone(ms);
+                        setActiveYear(ms.year);
                         playSuccessChime();
                       }}
                       onMouseEnter={() => {
                         setHoveredYear(ms.year);
+                        setActiveYear(ms.year);
                         playBubbleSound();
                       }}
                       onMouseLeave={() => setHoveredYear(null)}
-                      whileHover={{ scale: 1.2, rotate: 360 }}
+                      whileHover={{ scale: 1.25, rotate: 360 }}
                       className={`w-12 h-12 rounded-full flex items-center justify-center text-xs font-black border-2 shadow-lg cursor-pointer transition-all ${
-                        isHovered 
+                        activeYear === ms.year
+                          ? 'bg-gradient-to-tr from-indigo-600 via-pink-500 to-amber-500 text-white border-transparent ring-4 ring-indigo-200'
+                          : isHovered 
                           ? 'bg-gradient-to-tr from-pink-500 to-amber-400 text-white border-transparent'
                           : 'bg-white text-slate-800 border-teal-400 hover:border-indigo-500'
                       }`}
@@ -171,12 +245,16 @@ export const TimelineJourney: React.FC<TimelineJourneyProps> = ({
                   {/* Right Column / Content Card Container */}
                   <div className="w-full md:w-1/2 px-4 pl-16 md:pl-8 text-left">
                     <motion.div
-                      whileHover={{ y: -5 }}
+                      whileHover={{ y: -8, scale: 1.02 }}
+                      onMouseEnter={() => {
+                        setActiveYear(ms.year);
+                      }}
                       onClick={() => {
                         setSelectedMilestone(ms);
+                        setActiveYear(ms.year);
                         playSuccessChime();
                       }}
-                      className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-md hover:shadow-xl hover:border-indigo-150 transition-all cursor-pointer relative group text-left"
+                      className={`p-6 rounded-[32px] border-2 shadow-md transition-all duration-300 cursor-pointer relative group text-left ${cardStyle.card}`}
                     >
                       {/* Interactive flight overlay icon */}
                       <div className="absolute top-4 right-4 text-slate-300 opacity-20 group-hover:opacity-100 group-hover:text-indigo-400 transition-all duration-300">
@@ -204,12 +282,12 @@ export const TimelineJourney: React.FC<TimelineJourneyProps> = ({
                         </p>
                       )}
 
-                      <p className="text-xs text-slate-500 mt-3 line-clamp-3 leading-relaxed border-l-2 border-teal-500/40 pl-2.5 font-sans">
+                      <p className={`text-xs text-slate-600 mt-3 line-clamp-3 leading-relaxed pl-2.5 font-sans ${cardStyle.borderLeft}`}>
                         "{displayNotes}"
                       </p>
 
                       {/* Timeline miniature achievements/events bullets list */}
-                      <div className="mt-4 pt-4 border-t border-slate-50 space-y-1.5">
+                      <div className="mt-4 pt-4 border-t border-slate-100 space-y-1.5">
                         {ms.events.slice(0, 2).map((ev, i) => (
                           <div key={i} className="flex items-center gap-2 text-[11px] text-slate-600">
                             <span className="w-1 h-1 bg-indigo-400 rounded-full flex-shrink-0" />
@@ -219,7 +297,7 @@ export const TimelineJourney: React.FC<TimelineJourneyProps> = ({
                       </div>
 
                       {/* Click to open details bar */}
-                      <div className="mt-4 pt-3 flex items-center justify-between text-indigo-600 text-[10px] font-extrabold uppercase">
+                      <div className={`mt-4 pt-3 flex items-center justify-between text-[10px] font-extrabold uppercase ${cardStyle.accentText}`}>
                         <span>🚀 {lang === 'en' ? 'Open Year Dashboard' : 'वर्ष डैशबोर्ड खोलें'}</span>
                         <DynamicIcon name="ArrowRight" size={10} className="transform group-hover:translate-x-1.5 transition-transform" />
                       </div>

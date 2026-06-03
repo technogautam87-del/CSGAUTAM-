@@ -44,6 +44,8 @@ export interface TranslationDict {
   zoomPreview: string;
   backToTop: string;
   interactiveAvatarGreet: string[];
+  photoGallery: string;
+  gallerySubtitle: string;
 }
 
 export const TRANSLATIONS: { en: TranslationDict; hi: TranslationDict } = {
@@ -99,7 +101,9 @@ export const TRANSLATIONS: { en: TranslationDict; hi: TranslationDict } = {
       "Let's play and grow together! 🎨",
       "Every step counts! You are awesome! 💖",
       "Greetings from the classroom! Have a super day! 🌈"
-    ]
+    ],
+    photoGallery: "🖼️ Photo Gallery",
+    gallerySubtitle: "Capturing beautiful moments of active inclusion, sensory therapy, and student milestone highlights."
   },
   hi: {
     welcome: "👋 स्वागतम",
@@ -153,6 +157,8 @@ export const TRANSLATIONS: { en: TranslationDict; hi: TranslationDict } = {
       "आइए मिलकर कलाकृतियां बनाएं! 🎨",
       "हर बच्चे में एक अद्भुत प्रतिभा होती है! 💖",
       "आपकी यात्रा शुभ हो! आपका दिन मंगलमय रहे! 🌈"
-    ]
+    ],
+    photoGallery: "🖼️ चित्र दीर्घा (गैलरी)",
+    gallerySubtitle: "समावेशी गितिविधियों, संवेदी थेरेपी सत्रों और स्कूल कार्यक्रमों की कुछ सुंदर झलकियां।"
   }
 };

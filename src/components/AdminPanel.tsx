@@ -124,6 +124,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newSocCategory, setNewSocCategory] = useState<string>('Social Network');
   const [newSlideUrl, setNewSlideUrl] = useState<string>('');
   const [newSlideCaption, setNewSlideCaption] = useState<string>('');
+  const [newSlideCaptionHi, setNewSlideCaptionHi] = useState<string>('');
+  const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
+  const [editingSlideUrl, setEditingSlideUrl] = useState<string>('');
+  const [editingSlideCaption, setEditingSlideCaption] = useState<string>('');
+  const [editingSlideCaptionHi, setEditingSlideCaptionHi] = useState<string>('');
 
   // Keypad processing
   const handleKeyPress = (num: string) => {
@@ -301,7 +306,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const added: SliderPhoto = {
       id: 'slide-' + Date.now(),
       url: newSlideUrl,
-      caption: newSlideCaption
+      caption: newSlideCaption,
+      captionHi: newSlideCaptionHi || newSlideCaption
     };
 
     onUpdateSlides([...slides, added]);
@@ -309,10 +315,56 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     setNewSlideUrl('');
     setNewSlideCaption('');
+    setNewSlideCaptionHi('');
+  };
+
+  const handleStartEditSlide = (slide: SliderPhoto) => {
+    setEditingSlideId(slide.id);
+    setEditingSlideUrl(slide.url);
+    setEditingSlideCaption(slide.caption);
+    setEditingSlideCaptionHi(slide.captionHi || '');
+    playBubbleSound();
+  };
+
+  const handleSaveEditedSlide = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSlideId || !editingSlideUrl.trim() || !editingSlideCaption.trim()) return;
+
+    const updated = slides.map(s => {
+      if (s.id === editingSlideId) {
+        return {
+          ...s,
+          url: editingSlideUrl,
+          caption: editingSlideCaption,
+          captionHi: editingSlideCaptionHi || editingSlideCaption
+        };
+      }
+      return s;
+    });
+
+    onUpdateSlides(updated);
+    playSuccessChime();
+
+    // Reset editing states
+    setEditingSlideId(null);
+    setEditingSlideUrl('');
+    setEditingSlideCaption('');
+    setEditingSlideCaptionHi('');
+  };
+
+  const handleCancelEditSlide = () => {
+    setEditingSlideId(null);
+    setEditingSlideUrl('');
+    setEditingSlideCaption('');
+    setEditingSlideCaptionHi('');
+    playBubbleSound();
   };
 
   const handleDeleteSlide = (id: string) => {
     onUpdateSlides(slides.filter(s => s.id !== id));
+    if (editingSlideId === id) {
+      setEditingSlideId(null);
+    }
     playBubbleSound();
   };
 
@@ -499,7 +551,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   { key: 'timeline', icon: 'Compass', label: 'Timeline Path' },
                   { key: 'achievements', icon: 'Award', label: 'Achievements' },
                   { key: 'publications', icon: 'BookOpen', label: 'Publications' },
-                  { key: 'slides', icon: 'Image', label: 'Slider Cover' },
+                  { key: 'slides', icon: 'Image', label: 'Photo Gallery (फोटो गैलरी)' },
                   { key: 'social', icon: 'Globe', label: 'Social Networks' }
                 ].map((item) => (
                   <button
@@ -1278,62 +1330,171 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 )}
 
-                {/* 4. COVER PHOTO SLIDER */}
+                {/* 4. COVER PHOTO SLIDER / PHOTO GALLERY */}
                 {activeAdminTab === 'slides' && (
                   <div>
                     <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4 border-b pb-2 flex justify-between items-center">
-                      <span>Cover Slider Photos Database</span>
+                      <span>🖼️ Photo Gallery & Slider Database (चित्र गैलरी)</span>
+                      <span className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-bold">
+                        {slides.length} {lang === 'en' ? 'Photos' : 'चित्र'}
+                      </span>
                     </h4>
 
-                    {/* Form */}
-                    <form onSubmit={handleAddSlide} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-4 mb-6">
-                      <span className="text-xs font-extrabold text-slate-700 block">📷 Register New Slide Image</span>
-                      
-                      <div className="grid grid-cols-1 gap-4">
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-400 uppercase">Drive/Host Photo URL</label>
-                          <input
-                            type="text"
-                            placeholder="https://images.unsplash.com/photo-..."
-                            value={newSlideUrl}
-                            onChange={(e) => setNewSlideUrl(e.target.value)}
-                            className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-400 uppercase">Caption Caption</label>
-                          <input
-                            type="text"
-                            placeholder="e.g. Special Children playing tactile block games"
-                            value={newSlideCaption}
-                            onChange={(e) => setNewSlideCaption(e.target.value)}
-                            className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1"
-                          />
-                        </div>
-                      </div>
-
-                      <button
-                        type="submit"
-                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
-                      >
-                        Insert Into Slider Archive &rarr;
-                      </button>
-                    </form>
-
-                    {/* Listing */}
-                    <div className="space-y-3">
-                      {slides.map((s) => (
-                        <div key={s.id} className="flex gap-4 items-center bg-white border border-slate-100 p-3 rounded-xl justify-between">
-                          <div className="flex items-center gap-3">
-                            <img src={s.url} alt="" className="w-16 h-10 object-cover rounded-md border" />
-                            <span className="text-xs font-semibold text-slate-700">{s.caption}</span>
-                          </div>
+                    {/* DYNAMIC EDITING FORM VS ADDING FORM */}
+                    {editingSlideId ? (
+                      <form onSubmit={handleSaveEditedSlide} className="bg-amber-50/60 p-5 rounded-2xl border border-amber-200/80 space-y-4 mb-6 text-left">
+                        <div className="flex justify-between items-center border-b border-amber-200 pb-1.5">
+                          <span className="text-xs font-black text-amber-900 block">✏️ Edit Photo Gallery Item (बदलाव करें)</span>
                           <button
-                            onClick={() => handleDeleteSlide(s.id)}
-                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                            type="button"
+                            onClick={handleCancelEditSlide}
+                            className="text-xs text-amber-800 hover:underline hover:text-amber-950 font-bold"
                           >
-                            <DynamicIcon name="Trash2" size={14} />
+                            Cancel / रद्द करें ×
                           </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                            <label className="text-[10px] font-black text-amber-800 uppercase tracking-wider block">Image URL (चित्र का लिंक)</label>
+                            <input
+                              type="text"
+                              required
+                              value={editingSlideUrl}
+                              onChange={(e) => setEditingSlideUrl(e.target.value)}
+                              className="w-full text-xs p-2.5 border rounded-xl border-amber-200 bg-white mt-1 focus:outline-inner focus:outline-amber-500 shadow-inner"
+                            />
+                            {editingSlideUrl && (
+                              <div className="mt-2 flex justify-start">
+                                <img src={editingSlideUrl} alt="Preview" className="w-24 h-16 object-cover rounded-xl border-2 border-white shadow-md" />
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black text-amber-800 uppercase tracking-wider block">Caption Content (English)</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. Tactile materials classroom demonstration"
+                              value={editingSlideCaption}
+                              onChange={(e) => setEditingSlideCaption(e.target.value)}
+                              className="w-full text-xs p-2.5 border rounded-xl border-amber-200 bg-white mt-1 focus:outline-inner focus:outline-amber-500 shadow-inner"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black text-amber-800 uppercase tracking-wider block">कैप्शन / शीर्षक (Hindi)</label>
+                            <input
+                              type="text"
+                              placeholder="जैसे: स्पर्श संवेदी कक्षा में चर्चा"
+                              value={editingSlideCaptionHi}
+                              onChange={(e) => setEditingSlideCaptionHi(e.target.value)}
+                              className="w-full text-xs p-2.5 border rounded-xl border-amber-200 bg-white mt-1 focus:outline-inner focus:outline-amber-500 shadow-inner"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            type="submit"
+                            className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-amber-200"
+                          >
+                            💾 Update Photo (जानकारी अपडेट करें)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleCancelEditSlide}
+                            className="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold cursor-pointer"
+                          >
+                            {lang === 'en' ? 'Cancel' : 'रद्द करें'}
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <form onSubmit={handleAddSlide} className="bg-slate-50 p-5 rounded-2xl border border-slate-200/80 space-y-4 mb-6 text-left">
+                        <span className="text-xs font-black text-indigo-950 block border-b pb-1.5">➕ Add Image to Photo Gallery (नई तस्वीर जोड़ें)</span>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block animate-pulse">Photo URL Link (तस्वीर का वेब लिंक)</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="https://images.unsplash.com/photo-..."
+                              value={newSlideUrl}
+                              onChange={(e) => setNewSlideUrl(e.target.value)}
+                              className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 focus:outline-indigo-500 shadow-inner"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Caption Label (English)</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. Inclusive sports day run celebration"
+                              value={newSlideCaption}
+                              onChange={(e) => setNewSlideCaption(e.target.value)}
+                              className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 focus:outline-indigo-500 shadow-inner"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">तस्वीर स्पष्टीकरण / कैप्शन (Hindi)</label>
+                            <input
+                              type="text"
+                              placeholder="जैसे: खेल दिवस पर विशेष बच्चों की दौड़"
+                              value={newSlideCaptionHi}
+                              onChange={(e) => setNewSlideCaptionHi(e.target.value)}
+                              className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 focus:outline-indigo-500 shadow-inner"
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="w-full py-3 bg-gradient-to-r from-teal-500 to-indigo-600 hover:from-teal-600 hover:to-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-indigo-100 flex items-center justify-center gap-2"
+                        >
+                          <span>🌈 Add to Public Gallery & Slider (गैलरी में शामिल करें)</span>
+                        </button>
+                      </form>
+                    )}
+
+                    {/* Listing of Existing Photos */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {slides.map((s) => (
+                        <div key={s.id} className="group relative flex flex-col bg-white border border-slate-150 p-3 rounded-2xl shadow-xs transition-all hover:shadow-md hover:border-slate-300">
+                          
+                          {/* Image preview box */}
+                          <div className="relative h-32 w-full rounded-xl overflow-hidden mb-3 border">
+                            <img src={s.url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300" referrerPolicy="no-referrer" />
+                            <div className="absolute top-2 right-2 flex gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => handleStartEditSlide(s)}
+                                className="p-1.5 rounded-lg bg-amber-500/90 text-white hover:bg-amber-600 transition-colors shadow-xs cursor-pointer"
+                                title="Edit properties"
+                              >
+                                <DynamicIcon name="Edit" size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSlide(s.id)}
+                                className="p-1.5 rounded-lg bg-rose-600/90 text-white hover:bg-rose-700 transition-colors shadow-xs cursor-pointer"
+                                title="Delete from gallery"
+                              >
+                                <DynamicIcon name="Trash2" size={12} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="text-left space-y-1">
+                            <div className="flex items-start gap-1">
+                              <span className="text-[9px] bg-indigo-50 text-indigo-700 font-bold px-1 rounded flex-shrink-0 mt-0.5">EN</span>
+                              <span className="text-[11px] font-semibold text-slate-800 line-clamp-2">{s.caption}</span>
+                            </div>
+                            {s.captionHi && (
+                              <div className="flex items-start gap-1 border-t pt-1 border-slate-50 mt-1">
+                                <span className="text-[9px] bg-emerald-50 text-emerald-700 font-bold px-1 rounded flex-shrink-0 mt-0.5">HI</span>
+                                <span className="text-[11px] font-medium text-slate-600 line-clamp-2">{s.captionHi}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>

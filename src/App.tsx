@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TimelineMilestone, Publication, NewsCutting, LiveVideo, Achievement, SliderPhoto, SocialLink, HomepageConfig } from './types';
+import { InteractiveAvatar } from './components/InteractiveAvatar';
 import {
   INITIAL_TIMELINE_MILESTONES,
   INITIAL_PUBLICATIONS,
@@ -16,6 +17,7 @@ import { TimelineJourney } from './components/TimelineJourney';
 import { PublicationsTab } from './components/PublicationsTab';
 import { NewsAndVideos } from './components/NewsAndVideos';
 import { AchievementsTab } from './components/AchievementsTab';
+import { PhotoGalleryTab } from './components/PhotoGalleryTab';
 import { AdminPanel } from './components/AdminPanel';
 import { Footer } from './components/Footer';
 import { DynamicIcon } from './components/DynamicIcon';
@@ -35,13 +37,39 @@ export default function App() {
   const [homepageConfig, setHomepageConfig] = useState<HomepageConfig>(INITIAL_HOMEPAGE_CONFIG);
   
   const [appreciationCount, setAppreciationCount] = useState<number>(128);
-  const [activeTab, setActiveTab] = useState<'intro' | 'timeline' | 'publications' | 'news' | 'achievements'>('intro');
+  const [activeTab, setActiveTab] = useState<'intro' | 'timeline' | 'publications' | 'news' | 'achievements' | 'gallery'>('intro');
   const [showAdminPanel, setShowAdminPanel] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   
   // Custom states for bilingual system & live visit counter
   const [lang, setLang] = useState<'en' | 'hi'>('hi');
   const [pageViews, setPageViews] = useState<number>(1215);
+
+  const [isScrolling, setIsScrolling] = useState<boolean>(false);
+  const [scrollPercent, setScrollPercent] = useState<number>(0);
+
+  useEffect(() => {
+    let timeout: any;
+    const handleScroll = () => {
+      setIsScrolling(true);
+      
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+      setScrollPercent(pct);
+
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        setIsScrolling(false);
+      }, 400);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      clearTimeout(timeout);
+    };
+  }, []);
 
   // Initialize and retrieve data from LocalStorage
   useEffect(() => {
@@ -225,6 +253,7 @@ export default function App() {
             {[
               { id: 'intro', label: t.welcome },
               { id: 'timeline', label: t.journey },
+              { id: 'gallery', label: t.photoGallery },
               { id: 'publications', label: t.publications },
               { id: 'news', label: t.newsAndVideos },
               { id: 'achievements', label: t.achievements }
@@ -295,10 +324,11 @@ export default function App() {
         </div>
 
         {/* Mobile Navigation bar snippet */}
-        <div className="lg:hidden bg-slate-50 border-t border-slate-100 px-4 py-2 flex items-center justify-around">
+        <div className="lg:hidden bg-slate-50 border-t border-slate-100 px-4 py-2 flex items-center justify-around overflow-x-auto gap-2">
           {[
             { id: 'intro', label: lang === 'en' ? 'Home' : 'मुख्य' },
             { id: 'timeline', label: lang === 'en' ? 'Timeline' : 'यात्रा' },
+            { id: 'gallery', label: lang === 'en' ? 'Gallery' : 'गैलरी' },
             { id: 'publications', label: lang === 'en' ? 'Pubs' : 'पुस्तकें' },
             { id: 'news', label: lang === 'en' ? 'Media' : 'समाचार' },
             { id: 'achievements', label: lang === 'en' ? 'Awards' : 'पुरस्कार' }
@@ -365,6 +395,13 @@ export default function App() {
               />
             )}
 
+            {activeTab === 'gallery' && (
+              <PhotoGalleryTab
+                photos={slides}
+                lang={lang}
+              />
+            )}
+
             {activeTab === 'achievements' && (
               <AchievementsTab
                 achievements={achievements}
@@ -411,6 +448,67 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
       />
+
+      {/* 3.2 SCROLL-PAL WALKING FLOATING KUNG-FU PANDA COMPANION */}
+      <div className="fixed bottom-6 right-6 z-40 flex flex-col items-center">
+        <motion.div
+          initial={{ scale: 0, y: 50 }}
+          animate={{ scale: 1, y: 0 }}
+          transition={{ type: 'spring', delay: 1 }}
+          whileHover={{ scale: 1.1, translateY: -4 }}
+          className="relative bg-white/95 backdrop-blur-md p-2 rounded-full border border-slate-200 shadow-2xl flex items-center justify-center cursor-pointer group"
+        >
+          {/* Circular progress bar around scroll pal */}
+          <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none scale-102">
+            <circle
+              cx="50%"
+              cy="50%"
+              r="46%"
+              stroke="#f1f5f9"
+              strokeWidth="3"
+              fill="none"
+            />
+            <circle
+              cx="50%"
+              cy="50%"
+              r="46%"
+              stroke="url(#scrollGradient)"
+              strokeWidth="3"
+              fill="none"
+              strokeDasharray="283"
+              strokeDashoffset={283 - (283 * scrollPercent) / 100}
+              strokeLinecap="round"
+              className="transition-all duration-75"
+            />
+            <defs>
+              <linearGradient id="scrollGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#dc2626" />
+                <stop offset="100%" stopColor="#fbbf24" />
+              </linearGradient>
+            </defs>
+          </svg>
+
+          {/* Interactive Panda Companion */}
+          <div className="w-18 h-20 flex items-center justify-center overflow-visible relative">
+            <InteractiveAvatar
+              pose={isScrolling ? 'walking' : 'stance'}
+              size={64}
+              lang={lang}
+              className="transform -translate-y-1.5"
+            />
+          </div>
+
+          {/* Mini Percentage Floating Tag */}
+          <span className="absolute -bottom-1 bg-gradient-to-r from-red-600 to-yellow-500 text-white font-black text-[8px] px-1.5 py-0.5 rounded-full border border-white shadow-xs leading-none">
+            {Math.round(scrollPercent)}%
+          </span>
+
+          {/* Floating Action Hint Bubble on Hover */}
+          <div className="absolute right-full mr-3.5 top-1/2 -translate-y-1/2 bg-slate-900/95 backdrop-blur-xs text-white text-[9px] font-black uppercase tracking-wider py-1.5 px-3 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md whitespace-nowrap pointer-events-none border border-white/10">
+            <span>{lang === 'en' ? 'Click to hit!' : 'मुक्का मारने के लिए क्लिक करें!'} 🥋🐼</span>
+          </div>
+        </motion.div>
+      </div>
 
       {/* 4. FOOTER CREDENTIALS & COLORFUL LIVE VISITOR COUNTER */}
       <Footer
