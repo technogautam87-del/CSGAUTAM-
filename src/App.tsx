@@ -72,6 +72,7 @@ export default function App() {
   }, []);
 
   // Initialize and retrieve data from LocalStorage
+  // Initialize and retrieve data from LocalStorage & Live Express Server
   useEffect(() => {
     // Language preference
     const cachedLang = localStorage.getItem('db_lang');
@@ -87,76 +88,114 @@ export default function App() {
     setPageViews(viewed);
     localStorage.setItem('db_page_views', String(viewed));
 
-    // Milestones
-    const cachedMilestones = localStorage.getItem('db_milestones');
-    if (cachedMilestones) {
-      setMilestones(JSON.parse(cachedMilestones));
-    } else {
-      setMilestones(INITIAL_TIMELINE_MILESTONES);
-      localStorage.setItem('db_milestones', JSON.stringify(INITIAL_TIMELINE_MILESTONES));
-    }
-
-    // Publications
-    const cachedPubs = localStorage.getItem('db_publications');
-    if (cachedPubs) {
-      setPublications(JSON.parse(cachedPubs));
-    } else {
-      setPublications(INITIAL_PUBLICATIONS);
-      localStorage.setItem('db_publications', JSON.stringify(INITIAL_PUBLICATIONS));
-    }
-
-    // News
-    const cachedNews = localStorage.getItem('db_news');
-    if (cachedNews) {
-      setNewsCuttings(JSON.parse(cachedNews));
-    } else {
-      setNewsCuttings(INITIAL_NEWS_CUTTINGS);
-      localStorage.setItem('db_news', JSON.stringify(INITIAL_NEWS_CUTTINGS));
-    }
-
-    // Videos
-    const cachedVideos = localStorage.getItem('db_videos');
-    if (cachedVideos) {
-      setVideos(JSON.parse(cachedVideos));
-    } else {
-      setVideos(INITIAL_VIDEOS);
-      localStorage.setItem('db_videos', JSON.stringify(INITIAL_VIDEOS));
-    }
-
-    // Achievements
-    const cachedAchievements = localStorage.getItem('db_achievements');
-    if (cachedAchievements) {
-      setAchievements(JSON.parse(cachedAchievements));
-    } else {
-      setAchievements(INITIAL_ACHIEVEMENTS);
-      localStorage.setItem('db_achievements', JSON.stringify(INITIAL_ACHIEVEMENTS));
-    }
-
-    // Slide images
-    const cachedSlides = localStorage.getItem('db_slides');
-    if (cachedSlides) {
-      setSlides(JSON.parse(cachedSlides));
-    } else {
-      setSlides(INITIAL_SLIDER_PHOTOS);
-      localStorage.setItem('db_slides', JSON.stringify(INITIAL_SLIDER_PHOTOS));
-    }
-
-    // Social Links
-    const cachedSocial = localStorage.getItem('db_social_links');
-    if (cachedSocial) {
-      setSocialLinks(JSON.parse(cachedSocial));
-    } else {
-      setSocialLinks(INITIAL_SOCIAL_LINKS);
-      localStorage.setItem('db_social_links', JSON.stringify(INITIAL_SOCIAL_LINKS));
-    }
-
-    // Homepage Config
-    fetch('/api/homepage')
+    // Fetch unified global data from Express Server
+    fetch('/api/global_data')
       .then(res => res.json())
-      .then(data => {
-        if (data && data.status !== 'none' && data.teacherImageUrl) {
-          setHomepageConfig(data);
-          localStorage.setItem('db_homepage_config', JSON.stringify(data));
+      .then((serverData: any) => {
+        console.log('Successfully synced live server data:', serverData);
+        
+        // 1. Milestones
+        if (serverData.milestones && Array.isArray(serverData.milestones)) {
+          setMilestones(serverData.milestones);
+          localStorage.setItem('db_milestones', JSON.stringify(serverData.milestones));
+        } else {
+          const cachedMilestones = localStorage.getItem('db_milestones');
+          if (cachedMilestones) {
+            setMilestones(JSON.parse(cachedMilestones));
+          } else {
+            setMilestones(INITIAL_TIMELINE_MILESTONES);
+            localStorage.setItem('db_milestones', JSON.stringify(INITIAL_TIMELINE_MILESTONES));
+          }
+        }
+
+        // 2. Publications
+        if (serverData.publications && Array.isArray(serverData.publications)) {
+          setPublications(serverData.publications);
+          localStorage.setItem('db_publications', JSON.stringify(serverData.publications));
+        } else {
+          const cachedPubs = localStorage.getItem('db_publications');
+          if (cachedPubs) {
+            setPublications(JSON.parse(cachedPubs));
+          } else {
+            setPublications(INITIAL_PUBLICATIONS);
+            localStorage.setItem('db_publications', JSON.stringify(INITIAL_PUBLICATIONS));
+          }
+        }
+
+        // 3. News (cuttings)
+        if (serverData.newsCuttings && Array.isArray(serverData.newsCuttings)) {
+          setNewsCuttings(serverData.newsCuttings);
+          localStorage.setItem('db_news', JSON.stringify(serverData.newsCuttings));
+        } else {
+          const cachedNews = localStorage.getItem('db_news');
+          if (cachedNews) {
+            setNewsCuttings(JSON.parse(cachedNews));
+          } else {
+            setNewsCuttings(INITIAL_NEWS_CUTTINGS);
+            localStorage.setItem('db_news', JSON.stringify(INITIAL_NEWS_CUTTINGS));
+          }
+        }
+
+        // 4. Videos
+        if (serverData.videos && Array.isArray(serverData.videos)) {
+          setVideos(serverData.videos);
+          localStorage.setItem('db_videos', JSON.stringify(serverData.videos));
+        } else {
+          const cachedVideos = localStorage.getItem('db_videos');
+          if (cachedVideos) {
+            setVideos(JSON.parse(cachedVideos));
+          } else {
+            setVideos(INITIAL_VIDEOS);
+            localStorage.setItem('db_videos', JSON.stringify(INITIAL_VIDEOS));
+          }
+        }
+
+        // 5. Achievements
+        if (serverData.achievements && Array.isArray(serverData.achievements)) {
+          setAchievements(serverData.achievements);
+          localStorage.setItem('db_achievements', JSON.stringify(serverData.achievements));
+        } else {
+          const cachedAchievements = localStorage.getItem('db_achievements');
+          if (cachedAchievements) {
+            setAchievements(JSON.parse(cachedAchievements));
+          } else {
+            setAchievements(INITIAL_ACHIEVEMENTS);
+            localStorage.setItem('db_achievements', JSON.stringify(INITIAL_ACHIEVEMENTS));
+          }
+        }
+
+        // 6. Slides
+        if (serverData.slides && Array.isArray(serverData.slides)) {
+          setSlides(serverData.slides);
+          localStorage.setItem('db_slides', JSON.stringify(serverData.slides));
+        } else {
+          const cachedSlides = localStorage.getItem('db_slides');
+          if (cachedSlides) {
+            setSlides(JSON.parse(cachedSlides));
+          } else {
+            setSlides(INITIAL_SLIDER_PHOTOS);
+            localStorage.setItem('db_slides', JSON.stringify(INITIAL_SLIDER_PHOTOS));
+          }
+        }
+
+        // 7. Social Links
+        if (serverData.socialLinks && Array.isArray(serverData.socialLinks)) {
+          setSocialLinks(serverData.socialLinks);
+          localStorage.setItem('db_social_links', JSON.stringify(serverData.socialLinks));
+        } else {
+          const cachedSocial = localStorage.getItem('db_social_links');
+          if (cachedSocial) {
+            setSocialLinks(JSON.parse(cachedSocial));
+          } else {
+            setSocialLinks(INITIAL_SOCIAL_LINKS);
+            localStorage.setItem('db_social_links', JSON.stringify(INITIAL_SOCIAL_LINKS));
+          }
+        }
+
+        // 8. Homepage Config
+        if (serverData.homepageConfig && typeof serverData.homepageConfig === 'object') {
+          setHomepageConfig(serverData.homepageConfig);
+          localStorage.setItem('db_homepage_config', JSON.stringify(serverData.homepageConfig));
         } else {
           const cachedHomepage = localStorage.getItem('db_homepage_config');
           if (cachedHomepage) {
@@ -168,14 +207,32 @@ export default function App() {
         }
       })
       .catch((err) => {
-        console.warn('Backend server api offline, falling back to LocalStorage:', err);
-        const cachedHomepage = localStorage.getItem('db_homepage_config');
-        if (cachedHomepage) {
-          setHomepageConfig(JSON.parse(cachedHomepage));
-        } else {
-          setHomepageConfig(INITIAL_HOMEPAGE_CONFIG);
-          localStorage.setItem('db_homepage_config', JSON.stringify(INITIAL_HOMEPAGE_CONFIG));
-        }
+        console.warn('Backend server API unreachable, loading fallback LocalStorage keys:', err);
+        
+        // Fallbacks
+        const cMilestones = localStorage.getItem('db_milestones');
+        setMilestones(cMilestones ? JSON.parse(cMilestones) : INITIAL_TIMELINE_MILESTONES);
+
+        const cPubs = localStorage.getItem('db_publications');
+        setPublications(cPubs ? JSON.parse(cPubs) : INITIAL_PUBLICATIONS);
+
+        const cNews = localStorage.getItem('db_news');
+        setNewsCuttings(cNews ? JSON.parse(cNews) : INITIAL_NEWS_CUTTINGS);
+
+        const cVideos = localStorage.getItem('db_videos');
+        setVideos(cVideos ? JSON.parse(cVideos) : INITIAL_VIDEOS);
+
+        const cAchievements = localStorage.getItem('db_achievements');
+        setAchievements(cAchievements ? JSON.parse(cAchievements) : INITIAL_ACHIEVEMENTS);
+
+        const cSlides = localStorage.getItem('db_slides');
+        setSlides(cSlides ? JSON.parse(cSlides) : INITIAL_SLIDER_PHOTOS);
+
+        const cSocial = localStorage.getItem('db_social_links');
+        setSocialLinks(cSocial ? JSON.parse(cSocial) : INITIAL_SOCIAL_LINKS);
+
+        const cHomepage = localStorage.getItem('db_homepage_config');
+        setHomepageConfig(cHomepage ? JSON.parse(cHomepage) : INITIAL_HOMEPAGE_CONFIG);
       });
 
     // Hearts/Appreciations
@@ -187,59 +244,69 @@ export default function App() {
     setIsMuted(getMuteState());
   }, []);
 
-  // Update helper triggers
+  // Helper to save server-side immediately
+  const saveKeyToServer = (key: string, value: any) => {
+    fetch('/api/global_data', {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, value }),
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log(`Successfully persisted ${key} to backend server globally!`, data);
+    })
+    .catch(err => {
+      console.error(`Error persisting ${key} to backend server:`, err);
+    });
+  };
+
+  // Update helper triggers with server-side live sync
   const handleUpdateMilestones = (updated: TimelineMilestone[]) => {
     setMilestones(updated);
     localStorage.setItem('db_milestones', JSON.stringify(updated));
+    saveKeyToServer('milestones', updated);
   };
 
   const handleUpdatePublications = (updated: Publication[]) => {
     setPublications(updated);
     localStorage.setItem('db_publications', JSON.stringify(updated));
+    saveKeyToServer('publications', updated);
   };
 
   const handleUpdateNews = (updated: NewsCutting[]) => {
     setNewsCuttings(updated);
     localStorage.setItem('db_news', JSON.stringify(updated));
+    saveKeyToServer('newsCuttings', updated);
   };
 
   const handleUpdateVideos = (updated: LiveVideo[]) => {
     setVideos(updated);
     localStorage.setItem('db_videos', JSON.stringify(updated));
+    saveKeyToServer('videos', updated);
   };
 
   const handleUpdateAchievements = (updated: Achievement[]) => {
     setAchievements(updated);
     localStorage.setItem('db_achievements', JSON.stringify(updated));
+    saveKeyToServer('achievements', updated);
   };
 
   const handleUpdateSlides = (updated: SliderPhoto[]) => {
     setSlides(updated);
     localStorage.setItem('db_slides', JSON.stringify(updated));
+    saveKeyToServer('slides', updated);
   };
 
   const handleUpdateSocialLinks = (updated: SocialLink[]) => {
     setSocialLinks(updated);
     localStorage.setItem('db_social_links', JSON.stringify(updated));
+    saveKeyToServer('socialLinks', updated);
   };
 
   const handleUpdateHomepageConfig = (updated: HomepageConfig) => {
     setHomepageConfig(updated);
     localStorage.setItem('db_homepage_config', JSON.stringify(updated));
-    
-    // Save/publish to the backend server so it is permanent and visible globally to everyone!
-    fetch('/api/homepage', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updated),
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log('Homepage config published globally:', data);
-    })
-    .catch(err => {
-      console.error('Error publishing homepage config globally:', err);
-    });
+    saveKeyToServer('homepageConfig', updated);
   };
 
   const handleSendAppreciation = () => {

@@ -11,16 +11,86 @@ app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ limit: "15mb", extended: true }));
 
 const CONFIG_FILE_PATH = path.join(process.cwd(), "global_homepage_config.json");
+const GLOBAL_DATA_PATH = path.join(process.cwd(), "global_app_data.json");
+
+// Helper to safely read global state json
+function readGlobalData() {
+  if (fs.existsSync(GLOBAL_DATA_PATH)) {
+    try {
+      const dataStr = fs.readFileSync(GLOBAL_DATA_PATH, "utf8");
+      return JSON.parse(dataStr);
+    } catch (e) {
+      console.error("Error parsing global data file, returning empty:", e);
+      return {};
+    }
+  }
+  return {};
+}
+
+// Helper to write global state json
+function writeGlobalData(data: any) {
+  try {
+    fs.writeFileSync(GLOBAL_DATA_PATH, JSON.stringify(data, null, 2), "utf8");
+  } catch (e) {
+    console.error("Error writing global data file:", e);
+  }
+}
+
+// API: Get all global App data fields
+app.get("/api/global_data", (req, res) => {
+  try {
+    const data = readGlobalData();
+    // Also include homepage config from its specific file if homepage config hasn't been migrated into global DB yet
+    if (!data.homepageConfig && fs.existsSync(CONFIG_FILE_PATH)) {
+      try {
+        const homepageRaw = fs.readFileSync(CONFIG_FILE_PATH, "utf8");
+        data.homepageConfig = JSON.parse(homepageRaw);
+      } catch (err) {}
+    }
+    return res.json(data);
+  } catch (error) {
+    console.error("Error getting global data:", error);
+    return res.status(500).json({ error: "Failed to read global data" });
+  }
+});
+
+// API: Save/Update a specific data field globally (e.g. milestones, slides, publications etc.)
+app.post("/api/global_data", (req, res) => {
+  try {
+    const { key, value } = req.body;
+    if (!key) {
+      return res.status(400).json({ error: "Missing 'key' parameter in payload" });
+    }
+
+    const currentData = readGlobalData();
+    currentData[key] = value;
+    
+    // Synchronize homepage config both in the global file and individual file so nothing breaks
+    if (key === "homepageConfig") {
+      try {
+        fs.writeFileSync(CONFIG_FILE_PATH, JSON.stringify(value, null, 2), "utf8");
+      } catch (err) {}
+    }
+
+    writeGlobalData(currentData);
+    return res.json({ status: "success", message: `${key} saved globally!` });
+  } catch (error) {
+    console.error("Error writing global data:", error);
+    return res.status(500).json({ error: "Failed to save data globally" });
+  }
+});
 
 // API: Get global homepage config
 app.get("/api/homepage", (req, res) => {
   try {
+    const globalData = readGlobalData();
+    if (globalData.homepageConfig) {
+      return res.json(globalData.homepageConfig);
+    }
     if (fs.existsSync(CONFIG_FILE_PATH)) {
       const data = fs.readFileSync(CONFIG_FILE_PATH, "utf8");
       return res.json(JSON.parse(data));
     }
-    // Return empty object if no config file has been written yet,
-    // so client can fall back to INITIAL_HOMEPAGE_CONFIG
     return res.json({ status: "none" });
   } catch (error) {
     console.error("Error reading global homepage config:", error);
@@ -35,7 +105,14 @@ app.post("/api/homepage", (req, res) => {
     if (!config || typeof config !== "object") {
       return res.status(400).json({ error: "Invalid configuration payload" });
     }
+    
+    // Save both locations
     fs.writeFileSync(CONFIG_FILE_PATH, JSON.stringify(config, null, 2), "utf8");
+    
+    const db = readGlobalData();
+    db.homepageConfig = config;
+    writeGlobalData(db);
+
     return res.json({ status: "success", message: "Homepage config published globally!" });
   } catch (error) {
     console.error("Error writing global homepage config:", error);
