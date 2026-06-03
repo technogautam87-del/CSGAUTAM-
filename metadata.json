@@ -1,0 +1,6 @@
+{
+  "name": "Personal Journey",
+  "description": "Interactive 3D timeline and professional portfolio dashboard of Chandrashekhar Gautam, Special Teacher.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
