@@ -4,6 +4,60 @@ import { TimelineMilestone, Publication, NewsCutting, LiveVideo, Achievement, Sl
 import { DynamicIcon, AVAILABLE_ACCENT_ICONS } from './DynamicIcon';
 import { playBubbleSound, playSuccessChime, playKeyTap, playErrorAlert } from '../audio';
 
+/**
+ * Safely transforms a Google Drive sharing/viewer link into a direct public fast-rendering 
+ * and optimized image URL using Google's high-speed usercontent system.
+ * Accepts optional maxSize parameter to automatically "shrink" / compress image files on-the-fly.
+ */
+export function tryTransformGoogleDriveUrl(url: string, maxSize?: number): string {
+  if (!url) return url;
+  const trimmed = url.trim();
+
+  // Return immediately if it does not belong to google drive domains
+  if (
+    !trimmed.includes('drive.google.com') &&
+    !trimmed.includes('docs.google.com') &&
+    !trimmed.includes('googleusercontent.com')
+  ) {
+    return trimmed;
+  }
+
+  let fileId = '';
+
+  // 1. Match /file/d/FILE_ID or /d/FILE_ID formats
+  const fileDRegex = /\/(?:file\/d|d)\/([a-zA-Z0-9_-]+)/;
+  const fileDMatch = trimmed.match(fileDRegex);
+  if (fileDMatch && fileDMatch[1]) {
+    fileId = fileDMatch[1];
+  }
+
+  // 2. Match id=FILE_ID query parameters
+  if (!fileId) {
+    const idRegex = /[?&]id=([a-zA-Z0-9_-]+)/;
+    const idMatch = trimmed.match(idRegex);
+    if (idMatch && idMatch[1]) {
+      fileId = idMatch[1];
+    }
+  }
+
+  // 3. Match from existing googleusercontent direct paths
+  if (!fileId && trimmed.includes('googleusercontent.com')) {
+    const lh3Regex = /\/d\/([a-zA-Z0-9_-]+)/;
+    const lh3Match = trimmed.match(lh3Regex);
+    if (lh3Match && lh3Match[1]) {
+      fileId = lh3Match[1];
+    }
+  }
+
+  if (fileId) {
+    // Return direct proxy link. If maxSize is requested, attach =s{maxSize} to shrink/minify the image asset size automatically.
+    const sizeSuffix = maxSize ? `=s${maxSize}` : '';
+    return `https://lh3.googleusercontent.com/d/${fileId}${sizeSuffix}`;
+  }
+
+  return trimmed;
+}
+
 interface AdminPanelProps {
   milestones: TimelineMilestone[];
   publications: Publication[];
@@ -149,7 +203,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     else if (field === 'teacherRoleHi') setTeacherRoleHi(value);
     else if (field === 'teacherBio') setTeacherBio(value);
     else if (field === 'teacherBioHi') setTeacherBioHi(value);
-    else if (field === 'teacherImageUrl') setTeacherImageUrl(value);
+    else if (field === 'teacherImageUrl') setTeacherImageUrl(tryTransformGoogleDriveUrl(value, 400));
     else if (field === 'card1Title') setCard1Title(value);
     else if (field === 'card1TitleHi') setCard1TitleHi(value);
     else if (field === 'card1Desc') setCard1Desc(value);
@@ -181,7 +235,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       teacherRoleHi: field === 'teacherRoleHi' ? value : teacherRoleHi,
       teacherBio: field === 'teacherBio' ? value : teacherBio,
       teacherBioHi: field === 'teacherBioHi' ? value : teacherBioHi,
-      teacherImageUrl: field === 'teacherImageUrl' ? value : teacherImageUrl,
+      teacherImageUrl: field === 'teacherImageUrl' ? tryTransformGoogleDriveUrl(value, 400) : teacherImageUrl,
       card1Title: field === 'card1Title' ? value : card1Title,
       card1TitleHi: field === 'card1TitleHi' ? value : card1TitleHi,
       card1Desc: field === 'card1Desc' ? value : card1Desc,
@@ -288,7 +342,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       subtitle: newSubtitle || undefined,
       category: newCategory,
       events: newEventsText.split('\n').filter(line => line.trim() !== ''),
-      photos: newPhotosText.trim() ? [newPhotosText.trim()] : ['https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&q=80&w=600'],
+      photos: newPhotosText.trim() ? [tryTransformGoogleDriveUrl(newPhotosText.trim(), 500)] : ['https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&q=80&w=600'],
       notes: newNotesText || 'Standard diary records.',
       achievements: []
     };
@@ -378,7 +432,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     const added: SliderPhoto = {
       id: 'slide-' + Date.now(),
-      url: newSlideUrl,
+      url: tryTransformGoogleDriveUrl(newSlideUrl, 800),
       caption: newSlideCaption,
       captionHi: newSlideCaptionHi || newSlideCaption
     };
@@ -407,7 +461,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       if (s.id === editingSlideId) {
         return {
           ...s,
-          url: editingSlideUrl,
+          url: tryTransformGoogleDriveUrl(editingSlideUrl, 800),
           caption: editingSlideCaption,
           captionHi: editingSlideCaptionHi || editingSlideCaption
         };
@@ -1128,7 +1182,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             type="text"
                             placeholder="https://images.unsplash.com/photo-..."
                             value={newPhotosText}
-                            onChange={(e) => setNewPhotosText(e.target.value)}
+                            onChange={(e) => setNewPhotosText(tryTransformGoogleDriveUrl(e.target.value, 500))}
                             className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1"
                           />
                         </div>
@@ -1795,7 +1849,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               type="text"
                               required
                               value={editingSlideUrl}
-                              onChange={(e) => setEditingSlideUrl(e.target.value)}
+                              onChange={(e) => setEditingSlideUrl(tryTransformGoogleDriveUrl(e.target.value, 800))}
                               className="w-full text-xs p-2.5 border rounded-xl border-amber-200 bg-white mt-1 focus:outline-inner focus:outline-amber-500 shadow-inner"
                             />
                             {editingSlideUrl && (
@@ -1855,7 +1909,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               required
                               placeholder="https://images.unsplash.com/photo-..."
                               value={newSlideUrl}
-                              onChange={(e) => setNewSlideUrl(e.target.value)}
+                              onChange={(e) => setNewSlideUrl(tryTransformGoogleDriveUrl(e.target.value, 800))}
                               className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 focus:outline-indigo-500 shadow-inner"
                             />
                           </div>
