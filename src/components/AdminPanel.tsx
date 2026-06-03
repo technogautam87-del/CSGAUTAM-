@@ -58,6 +58,123 @@ export function tryTransformGoogleDriveUrl(url: string, maxSize?: number): strin
   return trimmed;
 }
 
+/**
+ * Reusable Single-Click Local File Upload Module with beautiful status indicators and audio cues.
+ */
+interface SingleClickUploadProps {
+  onUploadSuccess: (url: string) => void;
+  accept?: string;
+  labelEn?: string;
+  labelHi?: string;
+  className?: string;
+}
+
+export const SingleClickUpload: React.FC<SingleClickUploadProps> = ({
+  onUploadSuccess,
+  accept = "*",
+  labelEn = "Upload File",
+  labelHi = "फ़ाइल अपलोड करें",
+  className = ""
+}) => {
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<boolean>(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError(null);
+    setSuccess(false);
+    playBubbleSound();
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Upload failed. Status: " + response.status);
+      }
+
+      const result = await response.json();
+      if (result.status === "success" && result.url) {
+        onUploadSuccess(result.url);
+        setSuccess(true);
+        playSuccessChime();
+        setTimeout(() => setSuccess(false), 3000);
+      } else {
+        throw new Error(result.error || "Upload response error");
+      }
+    } catch (err: any) {
+      console.error("Upload error details:", err);
+      setError(err.message || "Failed to upload file");
+      playErrorAlert();
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const triggerUpload = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  return (
+    <div className={`inline-flex flex-col items-start gap-1 font-sans ${className}`}>
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept={accept}
+        className="hidden"
+      />
+      <button
+        type="button"
+        onClick={triggerUpload}
+        disabled={uploading}
+        className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+          uploading
+            ? 'bg-slate-700 text-slate-300 animate-pulse cursor-not-allowed'
+            : success
+            ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
+            : error
+            ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-100'
+            : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-100'
+        }`}
+      >
+        <DynamicIcon
+          name={uploading ? 'Loader' : success ? 'Check' : 'UploadCloud'}
+          size={12}
+          className={uploading ? 'animate-spin' : ''}
+        />
+        <span>
+          {uploading
+            ? 'Uploading...'
+            : success
+            ? 'Uploaded ✓'
+            : error
+            ? 'Failed, Retry'
+            : `${labelEn} (${labelHi})`}
+        </span>
+      </button>
+      {error && (
+        <span className="text-[9px] text-rose-500 font-medium max-w-[200px] leading-tight block mt-0.5">{error}</span>
+      )}
+    </div>
+  );
+};
+
 interface AdminPanelProps {
   milestones: TimelineMilestone[];
   publications: Publication[];
@@ -79,6 +196,7 @@ interface AdminPanelProps {
 
   onClose: () => void;
   lang?: 'en' | 'hi';
+  onForceRefresh?: () => Promise<boolean>;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -100,11 +218,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onUpdateHomepageConfig,
   onClose,
   lang = 'hi',
+  onForceRefresh,
 }) => {
   // Screen lock state
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [pinCode, setPinCode] = useState<string>('');
   const [pinError, setPinError] = useState<boolean>(false);
+
+  // Force Refresh states
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [refreshSuccess, setRefreshSuccess] = useState<boolean | null>(null);
 
   // Section selectors
   const [activeAdminTab, setActiveAdminTab] = useState<'homepage' | 'timeline' | 'achievements' | 'publications' | 'slides' | 'social' | 'news' | 'videos'>('homepage');
@@ -122,6 +245,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [teacherBio, setTeacherBio] = useState(homepageConfig.teacherBio || '');
   const [teacherBioHi, setTeacherBioHi] = useState(homepageConfig.teacherBioHi || '');
   const [teacherImageUrl, setTeacherImageUrl] = useState(homepageConfig.teacherImageUrl || '');
+  const [customAvatarImageUrl, setCustomAvatarImageUrl] = useState(homepageConfig.customAvatarImageUrl || '');
+  const [usePhotoInsteadOfAvatar, setUsePhotoInsteadOfAvatar] = useState(homepageConfig.usePhotoInsteadOfAvatar || false);
 
   const [card1Title, setCard1Title] = useState(homepageConfig.card1Title || '');
   const [card1TitleHi, setCard1TitleHi] = useState(homepageConfig.card1TitleHi || '');
@@ -212,7 +337,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newVideoBadgeHi, setNewVideoBadgeHi] = useState<string>('');
 
   // Instantly propagate homepage config edits on keypress
-  const handleHomepageFieldChange = (field: keyof HomepageConfig, value: string) => {
+  const handleHomepageFieldChange = (field: keyof HomepageConfig, value: any) => {
     // 1. Update matching local state so form reflects typing instantly
     if (field === 'heroTitle') setHeroTitle(value);
     else if (field === 'heroTitleHi') setHeroTitleHi(value);
@@ -225,6 +350,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     else if (field === 'teacherBio') setTeacherBio(value);
     else if (field === 'teacherBioHi') setTeacherBioHi(value);
     else if (field === 'teacherImageUrl') setTeacherImageUrl(tryTransformGoogleDriveUrl(value, 400));
+    else if (field === 'customAvatarImageUrl') setCustomAvatarImageUrl(tryTransformGoogleDriveUrl(value, 600));
+    else if (field === 'usePhotoInsteadOfAvatar') setUsePhotoInsteadOfAvatar(!!value);
     else if (field === 'card1Title') setCard1Title(value);
     else if (field === 'card1TitleHi') setCard1TitleHi(value);
     else if (field === 'card1Desc') setCard1Desc(value);
@@ -257,6 +384,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       teacherBio: field === 'teacherBio' ? value : teacherBio,
       teacherBioHi: field === 'teacherBioHi' ? value : teacherBioHi,
       teacherImageUrl: field === 'teacherImageUrl' ? tryTransformGoogleDriveUrl(value, 400) : teacherImageUrl,
+      customAvatarImageUrl: field === 'customAvatarImageUrl' ? tryTransformGoogleDriveUrl(value, 600) : customAvatarImageUrl,
+      usePhotoInsteadOfAvatar: field === 'usePhotoInsteadOfAvatar' ? !!value : usePhotoInsteadOfAvatar,
       card1Title: field === 'card1Title' ? value : card1Title,
       card1TitleHi: field === 'card1TitleHi' ? value : card1TitleHi,
       card1Desc: field === 'card1Desc' ? value : card1Desc,
@@ -327,6 +456,62 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     reader.readAsDataURL(file);
   };
 
+  const handleCustomAvatarImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      playErrorAlert();
+      alert('Please select an image file! (कृपया केवल फोटो फाइल चुनें)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82); // High quality, compact size
+          
+          handleHomepageFieldChange('customAvatarImageUrl', compressedDataUrl);
+          playSuccessChime();
+        }
+      };
+      
+      if (event.target?.result) {
+        img.src = event.target.result as string;
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Keypad processing
   const handleKeyPress = (num: string) => {
     if (pinCode.length >= 4) return;
@@ -375,6 +560,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       teacherBio,
       teacherBioHi,
       teacherImageUrl,
+      customAvatarImageUrl,
+      usePhotoInsteadOfAvatar,
       card1Title,
       card1TitleHi,
       card1Desc,
@@ -788,6 +975,60 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
+                {onForceRefresh && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsRefreshing(true);
+                      setRefreshSuccess(null);
+                      playBubbleSound();
+                      try {
+                        const ok = await onForceRefresh();
+                        if (ok) {
+                          setRefreshSuccess(true);
+                          playSuccessChime();
+                          setTimeout(() => setRefreshSuccess(null), 3500);
+                        } else {
+                          setRefreshSuccess(false);
+                          playErrorAlert();
+                          setTimeout(() => setRefreshSuccess(null), 3500);
+                        }
+                      } catch (err) {
+                        setRefreshSuccess(false);
+                        playErrorAlert();
+                        setTimeout(() => setRefreshSuccess(null), 3500);
+                      } finally {
+                        setIsRefreshing(false);
+                      }
+                    }}
+                    disabled={isRefreshing}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isRefreshing 
+                        ? 'bg-slate-700 text-slate-300 animate-pulse cursor-not-allowed'
+                        : refreshSuccess === true
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                        : refreshSuccess === false
+                        ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-xs'
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-600/20'
+                    }`}
+                    title="Verify state consistency by manually pulling the absolute latest data from the live Firebase backend"
+                  >
+                    <DynamicIcon 
+                      name={isRefreshing ? 'Loader' : refreshSuccess === true ? 'Check' : refreshSuccess === false ? 'AlertTriangle' : 'RefreshCw'} 
+                      size={12} 
+                      className={isRefreshing ? 'animate-spin' : ''} 
+                    />
+                    <span>
+                      {isRefreshing 
+                        ? 'Refreshing...' 
+                        : refreshSuccess === true
+                        ? 'Consistent ✓' 
+                        : refreshSuccess === false
+                        ? 'Failed'
+                        : 'Force Refresh'}
+                    </span>
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setIsAuthenticated(false);
@@ -1104,6 +1345,155 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               <span className="text-[9px] text-slate-400 block mt-1 font-sans">
                                 Drive links are automatically converted and optimized!
                               </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 2.5: Interactive Avatar & Custom Large Photo (अवतार या बड़ी फ़ोटो का चयन व अपलोड) */}
+                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-4">
+                      <span className="text-xs font-black text-indigo-900 block border-b pb-1">
+                        🌟 Welcome Companion Configuration (मुख्य अवतार बनाम बड़ी फ़ोटो नियंत्रक)
+                      </span>
+
+                      <div className="bg-white p-4 rounded-xl border border-slate-200/60 space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 uppercase block">Choose Display Mode (स्वागत स्क्रीन पर क्या दिखाएं):</label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleHomepageFieldChange('usePhotoInsteadOfAvatar', false)}
+                            className={`p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all cursor-pointer ${
+                              !usePhotoInsteadOfAvatar
+                                ? 'bg-indigo-50/70 border-indigo-400 text-indigo-950 shadow-xs'
+                                : 'bg-slate-50/40 border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className="text-2xl mt-0.5">🐼</span>
+                            <div>
+                              <h5 className="text-[11px] font-bold">Interactive Kung-Fu Panda Avatar</h5>
+                              <p className="text-[9px] text-slate-400 font-medium">Bilingual live companion with real-time dynamic speech balloons and motions.</p>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleHomepageFieldChange('usePhotoInsteadOfAvatar', true)}
+                            className={`p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all cursor-pointer ${
+                              usePhotoInsteadOfAvatar
+                                ? 'bg-indigo-50/70 border-indigo-400 text-indigo-950 shadow-xs'
+                                : 'bg-slate-50/40 border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className="text-2xl mt-0.5">📸</span>
+                            <div>
+                              <h5 className="text-[11px] font-bold">My Large Custom Photo (मेरी बड़ी फोटो)</h5>
+                              <p className="text-[9px] text-slate-400 font-medium">Professional educator portrait with custom inspiring teaching values.</p>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Display custom photo uploader if customized photo is enabled, or allow always uploading */}
+                      <div className="bg-slate-100/30 p-4 rounded-xl border border-slate-200 space-y-4">
+                        <div className="flex items-center justify-between border-b pb-2">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                            🖼️ CHOOSE & UPLOAD TEACHER PHOTO (बड़ी फोटो अपलोड करें)
+                          </span>
+                          <span className="text-[8px] text-indigo-600 font-black bg-indigo-50 px-2 py-0.5 rounded-md">
+                            Preserves Full Photo Aspect Ratio (पूरी फ़ोटो बिना कटे अपलोड होगी)
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col md:flex-row gap-5 items-center">
+                          {/* Left visual preview */}
+                          <div className="flex flex-col items-center justify-center bg-white p-3.5 rounded-2xl border border-slate-150 shadow-xs shrink-0 w-full md:w-56">
+                            <span className="text-[9px] font-bold text-indigo-950 mb-1.5 uppercase tracking-wide">Photo Preview (फ़ोटो का आकार)</span>
+                            <div className="relative w-full h-44 rounded-xl overflow-hidden border-2 border-indigo-150/85 shadow-md flex items-center justify-center bg-slate-50">
+                              {customAvatarImageUrl ? (
+                                <img
+                                  src={customAvatarImageUrl}
+                                  alt="Custom Avatar Preview"
+                                  className="w-full h-full object-contain p-1"
+                                  referrerPolicy="no-referrer"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=600';
+                                  }}
+                                />
+                              ) : (
+                                <div className="text-slate-300 flex flex-col items-center gap-1">
+                                  <DynamicIcon name="Camera" size={24} />
+                                  <span className="text-[8px]">No Photo</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Right Upload operations */}
+                          <div className="flex-1 w-full space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {/* Option A: Direct compressed canvas upload */}
+                              <div>
+                                <span className="text-[9px] font-black text-slate-400 block mb-1 uppercase tracking-tight">Option 1: Direct File Selector</span>
+                                <label className="group flex flex-col items-center justify-center border border-dashed border-slate-300 hover:border-indigo-400 bg-white hover:bg-indigo-50/20 p-3.5 rounded-xl cursor-pointer transition-all duration-150 text-center shadow-xs">
+                                  <DynamicIcon name="Upload" size={14} className="text-slate-400 group-hover:text-indigo-600 mb-1" />
+                                  <span className="text-[11px] font-bold text-slate-700">Choose custom photo</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleCustomAvatarImageUpload}
+                                    className="hidden"
+                                  />
+                                </label>
+                              </div>
+
+                              {/* Option B: Quick Cloud Server Upload */}
+                              <div>
+                                <span className="text-[9px] font-black text-slate-400 block mb-1 uppercase tracking-tight">Option 2: Cloud Server Upload</span>
+                                <div className="border border-dashed border-slate-300 bg-white p-3 rounded-xl flex flex-col items-center justify-center text-center shadow-xs">
+                                  <div className="mb-1">
+                                    <SingleClickUpload
+                                      onUploadSuccess={(url) => {
+                                        handleHomepageFieldChange('customAvatarImageUrl', url);
+                                      }}
+                                      accept="image/*"
+                                      labelEn="Upload to Cloud"
+                                      labelHi="क्लाउड अपलोड"
+                                    />
+                                  </div>
+                                  <span className="text-[8px] text-slate-400 mt-1">Stores on official server</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Option C: Image URL Input */}
+                            <div>
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-tight block mb-1">Option 3: External image url or Google Drive link (इंटरनेट / ड्राइव लिंक)</label>
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  placeholder="Paste any Unsplash image link or Google Drive share link here..."
+                                  value={customAvatarImageUrl.startsWith('data:') ? '[Local Uploaded Base64 Image / लोकल फोटो]' : customAvatarImageUrl}
+                                  onChange={(e) => {
+                                    if (e.target.value === '[Local Uploaded Base64 Image / लोकल फोटो]') return;
+                                    handleHomepageFieldChange('customAvatarImageUrl', e.target.value);
+                                  }}
+                                  className="w-full text-xs p-2.5 pr-8 border rounded-xl bg-white shadow-inner focus:outline-indigo-500 font-mono"
+                                />
+                                {customAvatarImageUrl.startsWith('data:') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleHomepageFieldChange('customAvatarImageUrl', 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=600');
+                                      playBubbleSound();
+                                    }}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-rose-500 hover:text-rose-700 p-1 rounded-md hover:bg-rose-50 transition-colors"
+                                    title="Reset"
+                                  >
+                                    <DynamicIcon name="RefreshCcw" size={11} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1892,7 +2282,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] font-bold text-slate-400 uppercase">Resource weblink</label>
+                          <div className="flex justify-between items-center">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase">Resource weblink</label>
+                            <SingleClickUpload
+                              onUploadSuccess={(url) => setNewPubLink(url)}
+                              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,image/*"
+                              labelEn="Upload PDF/Photo"
+                              labelHi="पीडीएफ/फोटो"
+                            />
+                          </div>
                           <input
                             type="text"
                             placeholder="https://example.com/..."
@@ -1991,7 +2389,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                   />
                                 </div>
                                 <div>
-                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Resource Link</label>
+                                  <div className="flex justify-between items-center pb-0.5">
+                                    <label className="text-[9px] font-bold text-slate-400">Resource Link</label>
+                                    <SingleClickUpload
+                                      onUploadSuccess={(url) => {
+                                        const updated = publications.map(pub => pub.id === p.id ? { ...pub, link: url } : pub);
+                                        onUpdatePublications(updated);
+                                      }}
+                                      accept=".pdf,.doc,.docx,image/*"
+                                      labelEn="Upload File"
+                                      labelHi="अपलोड"
+                                    />
+                                  </div>
                                   <input
                                     type="text"
                                     value={p.link}
@@ -2277,7 +2686,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="md:col-span-2">
-                          <label className="text-[10px] font-bold text-slate-500 block pb-1">Image URL (Unsplash or direct link)</label>
+                          <div className="flex justify-between items-center pb-1">
+                            <label className="text-[10px] font-bold text-slate-500 block">Image URL (Unsplash or direct link)</label>
+                            <SingleClickUpload
+                              onUploadSuccess={(url) => setNewNewsImageUrl(url)}
+                              accept="image/*"
+                              labelEn="Upload Photo"
+                              labelHi="फोटो"
+                            />
+                          </div>
                           <input
                             type="text"
                             placeholder="https://..."
@@ -2391,7 +2808,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                                 <div className="md:col-span-2">
-                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Image URL</label>
+                                  <div className="flex justify-between items-center pb-0.5">
+                                    <label className="text-[9px] font-bold text-slate-400">Image URL</label>
+                                    <SingleClickUpload
+                                      onUploadSuccess={(url) => {
+                                        const updated = newsCuttings.map(n => n.id === news.id ? { ...n, imageUrl: url } : n);
+                                        onUpdateNewsCuttings(updated);
+                                      }}
+                                      accept="image/*"
+                                      labelEn="Upload Photo"
+                                      labelHi="अपलोड"
+                                    />
+                                  </div>
                                   <input
                                     type="text"
                                     value={news.imageUrl}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from './firebase';
-import { doc, setDoc, onSnapshot, collection } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, collection, getDocsFromServer } from 'firebase/firestore';
 import { TimelineMilestone, Publication, NewsCutting, LiveVideo, Achievement, SliderPhoto, SocialLink, HomepageConfig } from './types';
 import { InteractiveAvatar } from './components/InteractiveAvatar';
 import {
@@ -49,6 +49,10 @@ export default function App() {
 
   const [isScrolling, setIsScrolling] = useState<boolean>(false);
   const [scrollPercent, setScrollPercent] = useState<number>(0);
+  
+  // Global Search System states
+  const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
+  const [showMobileSearch, setShowMobileSearch] = useState<boolean>(false);
 
   useEffect(() => {
     let timeout: any;
@@ -245,6 +249,94 @@ export default function App() {
     setIsMuted(muted);
   };
 
+  const handleForceRefresh = async (): Promise<boolean> => {
+    try {
+      console.log("Manually force-refreshing latest global state from Firebase backend...");
+      const snapshot = await getDocsFromServer(collection(db, 'global_data'));
+      snapshot.forEach((doc) => {
+        const key = doc.id;
+        const data = doc.data();
+        const value = data.value;
+        if (!value) return;
+
+        if (key === 'milestones' && Array.isArray(value)) {
+          setMilestones(value);
+          localStorage.setItem('db_milestones', JSON.stringify(value));
+        } else if (key === 'publications' && Array.isArray(value)) {
+          setPublications(value);
+          localStorage.setItem('db_publications', JSON.stringify(value));
+        } else if (key === 'newsCuttings' && Array.isArray(value)) {
+          setNewsCuttings(value);
+          localStorage.setItem('db_news', JSON.stringify(value));
+        } else if (key === 'videos' && Array.isArray(value)) {
+          setVideos(value);
+          localStorage.setItem('db_videos', JSON.stringify(value));
+        } else if (key === 'achievements' && Array.isArray(value)) {
+          setAchievements(value);
+          localStorage.setItem('db_achievements', JSON.stringify(value));
+        } else if (key === 'slides' && Array.isArray(value)) {
+          setSlides(value);
+          localStorage.setItem('db_slides', JSON.stringify(value));
+        } else if (key === 'socialLinks' && Array.isArray(value)) {
+          setSocialLinks(value);
+          localStorage.setItem('db_social_links', JSON.stringify(value));
+        } else if (key === 'homepageConfig' && typeof value === 'object') {
+          setHomepageConfig(value);
+          localStorage.setItem('db_homepage_config', JSON.stringify(value));
+        }
+      });
+      return true;
+    } catch (err) {
+      console.error("Force refresh from Firebase backend failed:", err);
+      return false;
+    }
+  };
+
+  // Compute live search results across Journey, Publications, and News Cuttings
+  const cleanSearchQuery = globalSearchQuery.trim().toLowerCase();
+
+  const matchedMilestones = cleanSearchQuery ? milestones.filter(ms => {
+    const title = (lang === 'hi' && ms.titleHi ? ms.titleHi : ms.title).toLowerCase();
+    const notes = (lang === 'hi' && ms.notesHi ? ms.notesHi : ms.notes || '').toLowerCase();
+    const category = (lang === 'hi' && ms.categoryHi ? ms.categoryHi : ms.category).toLowerCase();
+    return title.includes(cleanSearchQuery) || notes.includes(cleanSearchQuery) || category.includes(cleanSearchQuery);
+  }) : [];
+
+  const matchedPublications = cleanSearchQuery ? publications.filter(pub => {
+    const title = (lang === 'hi' && pub.titleHi ? pub.titleHi : pub.title).toLowerCase();
+    const desc = (lang === 'hi' && pub.descriptionHi ? pub.descriptionHi : pub.description || '').toLowerCase();
+    const author = (pub.author || '').toLowerCase();
+    return title.includes(cleanSearchQuery) || desc.includes(cleanSearchQuery) || author.includes(cleanSearchQuery);
+  }) : [];
+
+  const matchedNews = cleanSearchQuery ? newsCuttings.filter(news => {
+    const title = (lang === 'hi' && news.titleHi ? news.titleHi : news.title).toLowerCase();
+    const summary = (lang === 'hi' && news.summaryHi ? news.summaryHi : news.summary || '').toLowerCase();
+    const source = (lang === 'hi' && news.sourceHi ? news.sourceHi : news.source || '').toLowerCase();
+    return title.includes(cleanSearchQuery) || summary.includes(cleanSearchQuery) || source.includes(cleanSearchQuery);
+  }) : [];
+
+  const hasSearchResults = matchedMilestones.length > 0 || matchedPublications.length > 0 || matchedNews.length > 0;
+  const totalMatches = matchedMilestones.length + matchedPublications.length + matchedNews.length;
+
+  const handleSelectSearchResult = (targetTab: 'timeline' | 'publications' | 'news', targetId: string) => {
+    setActiveTab(targetTab);
+    setGlobalSearchQuery('');
+    setShowMobileSearch(false);
+    playSuccessChime();
+
+    setTimeout(() => {
+      const element = document.getElementById(targetId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.add('ring-4', 'ring-indigo-500/80', 'ring-offset-2', 'outline-none');
+        setTimeout(() => {
+          element.classList.remove('ring-4', 'ring-indigo-500/80', 'ring-offset-2');
+        }, 2200);
+      }
+    }, 400);
+  };
+
   const t = TRANSLATIONS[lang];
 
   return (
@@ -300,6 +392,151 @@ export default function App() {
             ))}
           </nav>
 
+          {/* New Desktop Search Input with real-time autocompleting results dropdown */}
+          <div className="relative hidden lg:block w-40 xl:w-56 z-50">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <DynamicIcon name="Search" size={13} />
+            </div>
+            <input
+              type="text"
+              value={globalSearchQuery}
+              onChange={(e) => setGlobalSearchQuery(e.target.value)}
+              placeholder={lang === 'en' ? 'Search here...' : 'यहाँ खोजें...'}
+              className="w-full text-xs pl-8.5 pr-8 py-2 rounded-xl border border-slate-200/80 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all font-sans outline-none font-medium text-slate-850"
+            />
+            {globalSearchQuery && (
+              <button
+                onClick={() => setGlobalSearchQuery('')}
+                className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                title={lang === 'en' ? 'Clear' : 'साफ करें'}
+              >
+                <DynamicIcon name="X" size={12} />
+              </button>
+            )}
+
+            {/* Results Dropdown popup */}
+            <AnimatePresence>
+              {globalSearchQuery && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 mt-2 w-[380px] sm:w-[410px] bg-white rounded-2xl shadow-2xl border border-slate-100 max-h-[460px] overflow-y-auto p-3.5 text-left font-sans"
+                >
+                  <div className="flex justify-between items-center pb-2.5 border-b border-slate-100 mb-2.5">
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-455">
+                      🔎 {lang === 'en' ? 'Search results' : 'खोज परिणाम'}
+                    </span>
+                    <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2.5 py-0.5 rounded-full font-black">
+                      {totalMatches} {lang === 'en' ? 'found' : 'मिले'}
+                    </span>
+                  </div>
+
+                  {!hasSearchResults ? (
+                    <div className="py-8 text-center text-slate-400 flex flex-col items-center justify-center gap-1">
+                      <span className="text-xl">💨</span>
+                      <p className="text-xs font-bold">{lang === 'en' ? 'No matches found' : 'कोई परिणाम नहीं मिला'}</p>
+                      <p className="text-[10px] text-slate-400">{lang === 'en' ? 'Try search keywords' : 'कीवर्ड बदल कर प्रयास करें'}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 divide-y divide-slate-100/50">
+                      {/* 1. Milestones */}
+                      {matchedMilestones.length > 0 && (
+                        <div className="pt-2 first:pt-0">
+                          <span className="text-[9px] font-black text-teal-600 uppercase tracking-widest pl-1 mb-1.5 block">
+                            📅 {lang === 'en' ? 'Milestones' : 'मील के पत्थर'}
+                          </span>
+                          <div className="space-y-1">
+                            {matchedMilestones.map(ms => (
+                              <button
+                                key={ms.id}
+                                onClick={() => handleSelectSearchResult('timeline', `milestone-${ms.id}`)}
+                                className="w-full hover:bg-slate-50 focus:bg-slate-50 p-2 rounded-xl text-left transition-colors flex items-start gap-2.5 group cursor-pointer"
+                              >
+                                <span className="text-xs font-black text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded-md flex-shrink-0">
+                                  {ms.year}
+                                </span>
+                                <div>
+                                  <h5 className="text-[11px] font-bold text-slate-800 group-hover:text-indigo-600 transition-colors line-clamp-1">
+                                    {lang === 'hi' && ms.titleHi ? ms.titleHi : ms.title}
+                                  </h5>
+                                  <p className="text-[9px] text-slate-400 font-medium line-clamp-1">
+                                    {lang === 'hi' && ms.notesHi ? ms.notesHi : ms.notes}
+                                  </p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 2. Publications */}
+                      {matchedPublications.length > 0 && (
+                        <div className="pt-2">
+                          <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest pl-1 mb-1.5 block">
+                            📚 {lang === 'en' ? 'Publications' : 'प्रकाशन एवं सामग्री'}
+                          </span>
+                          <div className="space-y-1">
+                            {matchedPublications.map(pub => (
+                              <button
+                                key={pub.id}
+                                onClick={() => handleSelectSearchResult('publications', `publication-${pub.id}`)}
+                                className="w-full hover:bg-slate-50 focus:bg-slate-50 p-2 rounded-xl text-left transition-colors flex items-start gap-2.5 group cursor-pointer"
+                              >
+                                <span className="text-xs bg-blue-50 text-blue-600 p-1 rounded-md flex-shrink-0">
+                                  📖
+                                </span>
+                                <div>
+                                  <h5 className="text-[11px] font-bold text-slate-800 group-hover:text-indigo-600 transition-colors line-clamp-1">
+                                    {lang === 'hi' && pub.titleHi ? pub.titleHi : pub.title}
+                                  </h5>
+                                  <p className="text-[9px] text-slate-400 font-medium line-clamp-1">
+                                    {lang === 'hi' && pub.descriptionHi ? pub.descriptionHi : pub.description}
+                                  </p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 3. News Articles */}
+                      {matchedNews.length > 0 && (
+                        <div className="pt-2">
+                          <span className="text-[9px] font-black text-rose-600 uppercase tracking-widest pl-1 mb-1.5 block">
+                            📰 {lang === 'en' ? 'News & Media' : 'मीडिया समाचार कतरनें'}
+                          </span>
+                          <div className="space-y-1">
+                            {matchedNews.map(news => (
+                              <button
+                                key={news.id}
+                                onClick={() => handleSelectSearchResult('news', `news-${news.id}`)}
+                                className="w-full hover:bg-slate-50 focus:bg-slate-50 p-2 rounded-xl text-left transition-colors flex items-start gap-2.5 group cursor-pointer"
+                              >
+                                <span className="text-xs bg-rose-50 text-rose-600 p-1 rounded-md flex-shrink-0">
+                                  📰
+                                </span>
+                                <div>
+                                  <h5 className="text-[11px] font-bold text-slate-800 group-hover:text-indigo-600 transition-colors line-clamp-1">
+                                    {lang === 'hi' && news.titleHi ? news.titleHi : news.title}
+                                  </h5>
+                                  <p className="text-[9px] text-slate-400 font-medium line-clamp-1">
+                                    {lang === 'hi' && news.summaryHi ? news.summaryHi : news.summary}
+                                  </p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           {/* Right Area: Languages toggler, sound, admin lock */}
           <div className="flex items-center gap-2">
             
@@ -318,6 +555,18 @@ export default function App() {
               <span className="text-[10px] uppercase font-bold tracking-wide">
                 {lang === 'en' ? 'हिंदी' : 'English'}
               </span>
+            </button>
+
+            {/* Mobile Search toggler button */}
+            <button
+              onClick={() => {
+                setShowMobileSearch(!showMobileSearch);
+                playBubbleSound();
+              }}
+              className="lg:hidden p-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 hover:text-slate-850 cursor-pointer transition-all flex items-center justify-center"
+              title={lang === 'en' ? 'Search' : 'खोजें'}
+            >
+              <DynamicIcon name={showMobileSearch ? 'X' : 'Search'} size={14} />
             </button>
 
             {/* Mute toggle button */}
@@ -374,6 +623,134 @@ export default function App() {
             </button>
           ))}
         </div>
+
+        {/* Mobile Search Input and Results */}
+        <AnimatePresence>
+          {showMobileSearch && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="lg:hidden bg-white border-t border-slate-100 overflow-hidden font-sans"
+            >
+              <div className="p-3">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <DynamicIcon name="Search" size={14} />
+                  </div>
+                  <input
+                    type="text"
+                    value={globalSearchQuery}
+                    onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                    placeholder={lang === 'en' ? 'Search milestones, publications, news...' : 'खोजें मील के पत्थर, प्रकाशन, समाचार पत्र...'}
+                    className="w-full text-xs pl-9 pr-8 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white outline-none font-medium text-slate-800"
+                    autoFocus
+                  />
+                  {globalSearchQuery && (
+                    <button
+                      onClick={() => setGlobalSearchQuery('')}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                    >
+                      <DynamicIcon name="X" size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {globalSearchQuery && (
+                  <div className="mt-3 max-h-[300px] overflow-y-auto divide-y divide-slate-100/50">
+                    <div className="flex justify-between items-center pb-2 mb-2">
+                      <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                        {lang === 'en' ? 'Results' : 'खोज परिणाम'}
+                      </span>
+                      <span className="text-[9px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-bold">
+                        {totalMatches} {lang === 'en' ? 'found' : 'मिले'}
+                      </span>
+                    </div>
+
+                    {!hasSearchResults ? (
+                      <div className="py-6 text-center text-slate-450 text-xs font-bold">
+                        {lang === 'en' ? 'No matches found' : 'कोई परिणाम नहीं मिला'}
+                      </div>
+                    ) : (
+                      <div className="space-y-4 pb-2 text-left divide-y divide-slate-100/50">
+                        {/* Milestones */}
+                        {matchedMilestones.length > 0 && (
+                          <div className="pt-2 first:pt-0">
+                            <span className="text-[9px] font-extrabold text-teal-600 uppercase tracking-widest mb-1.5 block">
+                              📅 {lang === 'en' ? 'Milestones' : 'मील के पत्थर'}
+                            </span>
+                            <div className="space-y-1">
+                              {matchedMilestones.map(ms => (
+                                <button
+                                  key={ms.id}
+                                  onClick={() => handleSelectSearchResult('timeline', `milestone-${ms.id}`)}
+                                  className="w-full p-2 hover:bg-slate-50 rounded-lg text-left flex items-start gap-2 cursor-pointer"
+                                >
+                                  <span className="text-[10px] font-black text-teal-600 bg-teal-50 px-1 py-0.5 rounded-md">
+                                    {ms.year}
+                                  </span>
+                                  <span className="text-[11px] font-bold text-slate-800 line-clamp-1">
+                                    {lang === 'hi' && ms.titleHi ? ms.titleHi : ms.title}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Publications */}
+                        {matchedPublications.length > 0 && (
+                          <div className="pt-2">
+                            <span className="text-[9px] font-extrabold text-blue-600 uppercase tracking-widest mb-1.5 block">
+                              📚 {lang === 'en' ? 'Publications' : 'प्रकाशन'}
+                            </span>
+                            <div className="space-y-1">
+                              {matchedPublications.map(pub => (
+                                <button
+                                  key={pub.id}
+                                  onClick={() => handleSelectSearchResult('publications', `publication-${pub.id}`)}
+                                  className="w-full p-2 hover:bg-slate-50 rounded-lg text-left flex items-start gap-2 cursor-pointer"
+                                >
+                                  <span className="text-[10px]">📖</span>
+                                  <span className="text-[11px] font-bold text-slate-800 line-clamp-1">
+                                    {lang === 'hi' && pub.titleHi ? pub.titleHi : pub.title}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* News */}
+                        {matchedNews.length > 0 && (
+                          <div className="pt-2">
+                            <span className="text-[9px] font-extrabold text-rose-600 uppercase tracking-widest mb-1.5 block">
+                              📰 {lang === 'en' ? 'News' : 'समाचार पत्र'}
+                            </span>
+                            <div className="space-y-1">
+                              {matchedNews.map(news => (
+                                <button
+                                  key={news.id}
+                                  onClick={() => handleSelectSearchResult('news', `news-${news.id}`)}
+                                  className="w-full p-2 hover:bg-slate-50 rounded-lg text-left flex items-start gap-2 cursor-pointer"
+                                >
+                                  <span className="text-[10px]">📰</span>
+                                  <span className="text-[11px] font-bold text-slate-800 line-clamp-1">
+                                    {lang === 'hi' && news.titleHi ? news.titleHi : news.title}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       {/* 2. DYNAMIC WORKSPACE BODY CONTAINER COMPONENT SLIDER WITH ANIMATE PRESENCE FADE */}
@@ -462,6 +839,7 @@ export default function App() {
               playBubbleSound();
             }}
             lang={lang}
+            onForceRefresh={handleForceRefresh}
           />
         )}
       </AnimatePresence>

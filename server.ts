@@ -2,13 +2,60 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
+import multer from "multer";
 
 const app = express();
 const PORT = 3000;
 
+// Ensure upload directory exists
+const UPLOADS_DIR = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
+// Serve uploaded files statically
+app.use("/uploads", express.static(UPLOADS_DIR));
+
+// Configure multer storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, UPLOADS_DIR);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, file.fieldname + "-" + uniqueSuffix + ext);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 25 * 1024 * 1024 } // 25MB file size limit
+});
+
 // Maximum payload size for JSON (since base64 image could be 100kb - 500kb)
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ limit: "15mb", extended: true }));
+
+// Upload API Route
+app.post("/api/upload", upload.single("file"), (req: any, res: any) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file was uploaded." });
+    }
+    const fileUrl = `/uploads/${req.file.filename}`;
+    return res.json({
+      status: "success",
+      url: fileUrl,
+      originalName: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+  } catch (error: any) {
+    console.error("Upload error:", error);
+    return res.status(500).json({ error: error.message || "Failed to upload file." });
+  }
+});
 
 const CONFIG_FILE_PATH = path.join(process.cwd(), "global_homepage_config.json");
 const GLOBAL_DATA_PATH = path.join(process.cwd(), "global_app_data.json");

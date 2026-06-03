@@ -90,6 +90,7 @@ export const NewsAndVideos: React.FC<NewsAndVideosProps> = ({
               return (
                 <motion.div
                   key={news.id}
+                  id={`news-${news.id}`}
                   whileHover={{ y: -5 }}
                   className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-md shadow-slate-100/40 hover:shadow-xl hover:shadow-indigo-500/5 transition-all text-left flex flex-col justify-between"
                 >

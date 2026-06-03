@@ -253,6 +253,7 @@ const PublicationCard: React.FC<PublicationCardProps> = ({
 
   return (
     <motion.div
+      id={`publication-${pub.id}`}
       layout
       whileHover={{ y: -8 }}
       className="bg-white rounded-[32px] border border-slate-200/80 flex flex-col justify-between shadow-lg shadow-indigo-150/10 hover:shadow-2xl hover:border-slate-300 transition-all text-left overflow-hidden relative group"

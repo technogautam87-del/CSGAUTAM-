@@ -44,6 +44,23 @@ export const IntroSection: React.FC<IntroSectionProps> = ({
     }
   };
 
+  const teacherSpokenQuotes = {
+    en: {
+      namaste: "Radhe-Radhe! Welcome to my inclusive hub. Every student is uniquely capable; they just need our belief.",
+      speaking: "Active sensory learning is the blueprint of deep understanding. Inclusive teaching changes lives.",
+      wave: "Warm greetings! Dive into my interactive tools and resource blueprints designed for divergent thinkers.",
+      pointing: "Explore my milestones timeline and publications. Together, we can construct barrier-free classrooms.",
+      idle: "Take your time to download materials and adapt them for your exceptional classrooms!"
+    },
+    hi: {
+      namaste: "राधे-राधे! मेरे समावेशी हब में आपका स्वागत है। प्रत्येक बच्चा अपनी योग्यता के साथ अद्वितीय है!",
+      speaking: "संवेदी और क्रियात्मक शिक्षण ही समावेशी शिक्षा की धुरी है। हमारा निरंतर प्रयास ही हमारा संकल्प है।",
+      wave: "सस्नेह नमस्कार! न्यूरोडाइवर्जेंट बच्चों की शिक्षा के लिए आसान बने इन हस्तनिर्मित समाधानों का अध्ययन करें।",
+      pointing: "मेरे ऐतिहासिक मील के पत्थरों और शोध लेखों को देखें। मिलकर हम सब नए आयाम स्थापित कर सकते हैं।",
+      idle: "आराम से सभी शैक्षणिक सामग्रियों और समावेशी टूल्स को समझें एवं अपनी कक्षाओं के लिए अनुकूलित करें!"
+    }
+  };
+
   return (
     <div className="space-y-12">
       {/* 1. HERO HEADER INTRO & AVATAR CHARACTER */}
@@ -145,7 +162,9 @@ export const IntroSection: React.FC<IntroSectionProps> = ({
               <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping" />
               <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full absolute" />
               <span className="text-[10px] font-black text-indigo-900 tracking-wider uppercase font-mono">
-                {lang === 'en' ? 'BILINGUAL LIVE AVATAR ACTIVE' : 'द्विभाषी इंटरएक्टिव अवतार सक्रिय'}
+                {homepageConfig.usePhotoInsteadOfAvatar
+                  ? (lang === 'en' ? 'TEACHER PHOTO LIVE' : 'विशिष्ट शिक्षक चंद्रशेखर गौतम लाइव')
+                  : (lang === 'en' ? 'BILINGUAL LIVE AVATAR ACTIVE' : 'द्विभाषी इंटरएक्टिव अवतार सक्रिय')}
               </span>
             </div>
             
@@ -157,22 +176,42 @@ export const IntroSection: React.FC<IntroSectionProps> = ({
           {/* Central Character & Interactive Bubble area */}
           <div className="flex flex-col items-center justify-center py-6 relative">
             
-            <InteractiveAvatar
-              pose={currentPose}
-              size={240}
-              className="hover:scale-105 transition-transform duration-300 cursor-pointer"
-            />
+            {homepageConfig.usePhotoInsteadOfAvatar && homepageConfig.customAvatarImageUrl ? (
+              <div className="relative group/avatar cursor-pointer w-full max-w-[360px] flex justify-center">
+                <img
+                  src={homepageConfig.customAvatarImageUrl}
+                  alt={lang === 'hi' ? homepageConfig.teacherNameHi : homepageConfig.teacherName}
+                  className="w-full h-auto max-h-[300px] md:max-h-[350px] object-contain rounded-[24px] border-4 border-white bg-white/90 p-1.5 shadow-xl scale-100 hover:scale-[1.02] transition-transform duration-300"
+                  referrerPolicy="no-referrer"
+                  onClick={() => {
+                    const poses: AvatarPose[] = ['speaking', 'namaste', 'wave', 'pointing', 'idle'];
+                    const nextIndex = (poses.indexOf(currentPose) + 1) % poses.length;
+                    setCurrentPose(poses[nextIndex]);
+                    playKeyTap();
+                  }}
+                />
+                <span className="absolute bottom-2 right-4 bg-emerald-500 border-2 border-white text-white font-black text-[9px] px-2.5 py-1 rounded-full shadow-md">
+                  {lang === 'hi' ? 'विशेष शिक्षक' : 'Educator'}
+                </span>
+              </div>
+            ) : (
+              <InteractiveAvatar
+                pose={currentPose}
+                size={240}
+                className="hover:scale-105 transition-transform duration-300 cursor-pointer"
+              />
+            )}
 
             {/* Dynamic Interactive Speech Tooltip Bubble */}
             <motion.div
-              key={currentPose + lang}
+              key={currentPose + lang + (homepageConfig.usePhotoInsteadOfAvatar ? '-photo' : '-avatar')}
               initial={{ opacity: 0, scale: 0.9, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               className="mt-4 p-4 bg-white border-2 border-indigo-100 rounded-2xl shadow-sm max-w-sm text-center relative"
             >
               <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-t-2 border-l-2 border-indigo-100 rotate-45" />
               <p className="text-[12px] md:text-xs font-bold font-sans text-slate-700 leading-relaxed italic pr-1">
-                " {avatarSpokenQuotes[lang][currentPose]} "
+                " {homepageConfig.usePhotoInsteadOfAvatar ? teacherSpokenQuotes[lang][currentPose] : avatarSpokenQuotes[lang][currentPose]} "
               </p>
             </motion.div>
           </div>
@@ -180,16 +219,18 @@ export const IntroSection: React.FC<IntroSectionProps> = ({
           {/* Bottom Pose Switcher buttons bar */}
           <div className="space-y-2.5 relative z-10 pt-3 border-t border-indigo-100/60">
             <span className="text-[8px] font-black text-slate-450 tracking-widest uppercase block text-center font-sans">
-              {lang === 'en' ? 'SWITCH AVATAR INTERACTIVE MOTIONS' : 'अवतार की क्रियाएं व हाव-भाव बदलें'}
+              {homepageConfig.usePhotoInsteadOfAvatar
+                ? (lang === 'en' ? 'CHANGE INTERACTIVE QUOTE EXPRESSION' : 'विशेष शिक्षक के संदेश और विचार बदलें')
+                : (lang === 'en' ? 'SWITCH AVATAR INTERACTIVE MOTIONS' : 'अवतार की क्रियाएं व हाव-भाव बदलें')}
             </span>
 
             <div className="grid grid-cols-5 gap-1.5 p-1 bg-indigo-100/30 border border-indigo-100/50 rounded-xl">
               {[
-                { key: 'speaking', label: '🗣️ Speak' },
-                { key: 'namaste', label: '🙏 Radhe' },
-                { key: 'wave', label: '👋 Wave' },
-                { key: 'pointing', label: '👉 Point' },
-                { key: 'idle', label: '😴 Sleep' },
+                { key: 'speaking', label: lang === 'hi' ? '🗣️ विचार' : '🗣️ Thought' },
+                { key: 'namaste', label: lang === 'hi' ? '🙏 स्वागत' : '🙏 Hello' },
+                { key: 'wave', label: lang === 'hi' ? '👋 संदेश' : '👋 Greeting' },
+                { key: 'pointing', label: lang === 'hi' ? '👉 सहयोग' : '👉 Guide' },
+                { key: 'idle', label: lang === 'hi' ? '😴 धैर्य' : '😴 Pause' },
               ].map((poseBtn) => (
                 <button
                   key={poseBtn.key}

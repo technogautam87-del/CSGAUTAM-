@@ -117,5 +117,8 @@ export interface HomepageConfig {
   card3DescHi: string;
   card3Color: string;
   card3Emoji: string;
+
+  customAvatarImageUrl?: string;
+  usePhotoInsteadOfAvatar?: boolean;
 }
 

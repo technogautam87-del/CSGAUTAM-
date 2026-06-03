@@ -411,6 +411,8 @@ export const INITIAL_HOMEPAGE_CONFIG: HomepageConfig = {
   card3Desc: "Art festivals and unified play sessions connect mainstream children with special classrooms, weeding out social stigma through shared laughter.",
   card3DescHi: "कला उत्सव और खेल गतिविधियां सामान्य बच्चों को विशेष कक्षाओं से जोड़ते हैं, जिससे खेल-खेल में समाज की रूढ़ियों को दूर किया जा सके।",
   card3Color: "teal",
-  card3Emoji: "🤝"
+  card3Emoji: "🤝",
+  customAvatarImageUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=600",
+  usePhotoInsteadOfAvatar: false
 };
 
