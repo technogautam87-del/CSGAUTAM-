@@ -44,8 +44,8 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({
       if (chosenVoice) {
         utterance.voice = chosenVoice;
       }
-      utterance.pitch = 1.30; // High energetic panda pitch
-      utterance.rate = 0.85;  // Slower, highly articulate and clear pacing to give time for pauses and stress
+      utterance.pitch = 1.0;  // Natural realistic male pitch (1.0 is standard, highly realistic)
+      utterance.rate = 0.95;  // Natural, human-like cadence & rhythm
       window.speechSynthesis.speak(utterance);
     } catch (err) {
       console.warn('Po greeting error:', err);
@@ -117,21 +117,36 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({
     }
   };
 
-  // Standard Voice Selector finder for natural bilingual dialect
+  // Filter for natural MALE voices for bilingual narration (not robotic, realistically paced)
   const getSubtleVoice = (localLang: 'en' | 'hi'): SpeechSynthesisVoice | null => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return null;
     const voices = window.speechSynthesis.getVoices();
+    if (voices.length === 0) return null;
     
-    if (localLang === 'hi') {
-      // Target India Hindi voices
-      const hiVoice = voices.find(v => v.lang.includes('hi') || v.lang.startsWith('hi-IN'));
-      if (hiVoice) return hiVoice;
-    } else {
-      // Indian English / UK English
-      const enVoice = voices.find(v => v.lang.includes('en-IN') || v.lang.includes('en-GB') || v.lang.includes('en-US'));
-      if (enVoice) return enVoice;
-    }
-    return voices.length > 0 ? voices[0] : null;
+    const langPattern = localLang === 'hi' ? 'hi' : 'en';
+    const langVoices = voices.filter(v => 
+      v.lang.toLowerCase().includes(langPattern) || 
+      v.lang.toLowerCase().startsWith(langPattern)
+    );
+
+    const targetVoices = langVoices.length > 0 ? langVoices : voices;
+
+    // 1. Prioritize explicit high-quality male voices
+    const maleVoice = targetVoices.find(v => {
+      const name = v.name.toLowerCase();
+      return (name.includes('male') || name.includes('man') || name.includes('rishi') || name.includes('hemant') || name.includes('david') || name.includes('ravi') || name.includes('hari') || name.includes('google-hindi-m') || name.includes('microsoft heman')) &&
+             !name.includes('female') && !name.includes('kalpana') && !name.includes('vaani') && !name.includes('sabina') && !name.includes('hazel') && !name.includes('zira');
+    });
+    if (maleVoice) return maleVoice;
+
+    // 2. Reject known female voices
+    const nonFemale = targetVoices.filter(v => {
+      const name = v.name.toLowerCase();
+      return !name.includes('female') && !name.includes('woman') && !name.includes('girl') && !name.includes('kalpana') && !name.includes('vaani') && !name.includes('sabina') && !name.includes('hazel') && !name.includes('zira') && !name.includes('heera') && !name.includes('ekta') && !name.includes('swara') && !name.includes('siri') && !name.includes('samantha') && !name.includes('susan');
+    });
+    if (nonFemale.length > 0) return nonFemale[0];
+
+    return targetVoices[0];
   };
 
   // Compile narration paragraph for speech synthesis in the authentic tone of Po, the Kung-Fu Panda
@@ -192,9 +207,9 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({
           utterance.voice = chosenVoice;
         }
 
-        // Calibrate pitch and speed specifically for Po's energetic but articulate tone
-        utterance.pitch = lang === 'hi' ? 1.30 : 1.25; 
-        utterance.rate = lang === 'hi' ? 0.85 : 0.88; 
+        // Calibrate pitch and speed specifically for a realistic, clear male tone
+        utterance.pitch = lang === 'hi' ? 1.0 : 1.0; 
+        utterance.rate = lang === 'hi' ? 0.96 : 0.98; 
 
         utterance.onend = () => {
           setIsSpeaking(false);

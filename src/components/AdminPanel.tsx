@@ -130,6 +130,79 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [editingSlideCaption, setEditingSlideCaption] = useState<string>('');
   const [editingSlideCaptionHi, setEditingSlideCaptionHi] = useState<string>('');
 
+  // Auto-save inline editing IDs
+  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
+  const [editingAchievementId, setEditingAchievementId] = useState<string | null>(null);
+  const [editingPublicationId, setEditingPublicationId] = useState<string | null>(null);
+  const [editingSocialId, setEditingSocialId] = useState<string | null>(null);
+
+  // Instantly propagate homepage config edits on keypress
+  const handleHomepageFieldChange = (field: keyof HomepageConfig, value: string) => {
+    // 1. Update matching local state so form reflects typing instantly
+    if (field === 'heroTitle') setHeroTitle(value);
+    else if (field === 'heroTitleHi') setHeroTitleHi(value);
+    else if (field === 'heroDesc') setHeroDesc(value);
+    else if (field === 'heroDescHi') setHeroDescHi(value);
+    else if (field === 'teacherName') setTeacherName(value);
+    else if (field === 'teacherNameHi') setTeacherNameHi(value);
+    else if (field === 'teacherRole') setTeacherRole(value);
+    else if (field === 'teacherRoleHi') setTeacherRoleHi(value);
+    else if (field === 'teacherBio') setTeacherBio(value);
+    else if (field === 'teacherBioHi') setTeacherBioHi(value);
+    else if (field === 'teacherImageUrl') setTeacherImageUrl(value);
+    else if (field === 'card1Title') setCard1Title(value);
+    else if (field === 'card1TitleHi') setCard1TitleHi(value);
+    else if (field === 'card1Desc') setCard1Desc(value);
+    else if (field === 'card1DescHi') setCard1DescHi(value);
+    else if (field === 'card1Color') setCard1Color(value);
+    else if (field === 'card1Emoji') setCard1Emoji(value);
+    else if (field === 'card2Title') setCard2Title(value);
+    else if (field === 'card2TitleHi') setCard2TitleHi(value);
+    else if (field === 'card2Desc') setCard2Desc(value);
+    else if (field === 'card2DescHi') setCard2DescHi(value);
+    else if (field === 'card2Color') setCard2Color(value);
+    else if (field === 'card2Emoji') setCard2Emoji(value);
+    else if (field === 'card3Title') setCard3Title(value);
+    else if (field === 'card3TitleHi') setCard3TitleHi(value);
+    else if (field === 'card3Desc') setCard3Desc(value);
+    else if (field === 'card3DescHi') setCard3DescHi(value);
+    else if (field === 'card3Color') setCard3Color(value);
+    else if (field === 'card3Emoji') setCard3Emoji(value);
+
+    // 2. Propagate full update back to parent instantly to live reflect on-the-spot
+    onUpdateHomepageConfig({
+      heroTitle: field === 'heroTitle' ? value : heroTitle,
+      heroTitleHi: field === 'heroTitleHi' ? value : heroTitleHi,
+      heroDesc: field === 'heroDesc' ? value : heroDesc,
+      heroDescHi: field === 'heroDescHi' ? value : heroDescHi,
+      teacherName: field === 'teacherName' ? value : teacherName,
+      teacherNameHi: field === 'teacherNameHi' ? value : teacherNameHi,
+      teacherRole: field === 'teacherRole' ? value : teacherRole,
+      teacherRoleHi: field === 'teacherRoleHi' ? value : teacherRoleHi,
+      teacherBio: field === 'teacherBio' ? value : teacherBio,
+      teacherBioHi: field === 'teacherBioHi' ? value : teacherBioHi,
+      teacherImageUrl: field === 'teacherImageUrl' ? value : teacherImageUrl,
+      card1Title: field === 'card1Title' ? value : card1Title,
+      card1TitleHi: field === 'card1TitleHi' ? value : card1TitleHi,
+      card1Desc: field === 'card1Desc' ? value : card1Desc,
+      card1DescHi: field === 'card1DescHi' ? value : card1DescHi,
+      card1Color: field === 'card1Color' ? value : card1Color,
+      card1Emoji: field === 'card1Emoji' ? value : card1Emoji,
+      card2Title: field === 'card2Title' ? value : card2Title,
+      card2TitleHi: field === 'card2TitleHi' ? value : card2TitleHi,
+      card2Desc: field === 'card2Desc' ? value : card2Desc,
+      card2DescHi: field === 'card2DescHi' ? value : card2DescHi,
+      card2Color: field === 'card2Color' ? value : card2Color,
+      card2Emoji: field === 'card2Emoji' ? value : card2Emoji,
+      card3Title: field === 'card3Title' ? value : card3Title,
+      card3TitleHi: field === 'card3TitleHi' ? value : card3TitleHi,
+      card3Desc: field === 'card3Desc' ? value : card3Desc,
+      card3DescHi: field === 'card3DescHi' ? value : card3DescHi,
+      card3Color: field === 'card3Color' ? value : card3Color,
+      card3Emoji: field === 'card3Emoji' ? value : card3Emoji,
+    });
+  };
+
   // Keypad processing
   const handleKeyPress = (num: string) => {
     if (pinCode.length >= 4) return;
@@ -596,9 +669,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 {activeAdminTab === 'homepage' && (
                   <form onSubmit={handleSaveHomepageConfigAction} className="space-y-6 text-left">
                     <div className="flex justify-between items-center border-b pb-2">
-                      <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-                        🏠 Homepage Hero & Pedagogy Settings
-                      </h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                          🏠 Homepage Hero & Pedagogy Settings
+                        </h4>
+                        <span className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-bold border border-emerald-200 shadow-xs animate-pulse">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                          Live Auto-Save ON
+                        </span>
+                      </div>
                       {isHomeConfigSaved && (
                         <span className="px-3 py-1 bg-emerald-500 text-white rounded-full text-xs font-bold font-sans animate-bounce">
                           ✓ Saved Successfully! / सहेजा गया!
@@ -618,7 +697,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <input
                             type="text"
                             value={heroTitle}
-                            onChange={(e) => setHeroTitle(e.target.value)}
+                            onChange={(e) => handleHomepageFieldChange('heroTitle', e.target.value)}
                             className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 shadow-inner focus:outline-indigo-500"
                           />
                         </div>
@@ -627,7 +706,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <input
                             type="text"
                             value={heroTitleHi}
-                            onChange={(e) => setHeroTitleHi(e.target.value)}
+                            onChange={(e) => handleHomepageFieldChange('heroTitleHi', e.target.value)}
                             className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 shadow-inner focus:outline-indigo-500"
                           />
                         </div>
@@ -639,7 +718,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <textarea
                             rows={3}
                             value={heroDesc}
-                            onChange={(e) => setHeroDesc(e.target.value)}
+                            onChange={(e) => handleHomepageFieldChange('heroDesc', e.target.value)}
                             className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 shadow-inner focus:outline-indigo-500"
                           />
                         </div>
@@ -648,7 +727,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <textarea
                             rows={3}
                             value={heroDescHi}
-                            onChange={(e) => setHeroDescHi(e.target.value)}
+                            onChange={(e) => handleHomepageFieldChange('heroDescHi', e.target.value)}
                             className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 shadow-inner focus:outline-indigo-500"
                           />
                         </div>
@@ -667,7 +746,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <input
                             type="text"
                             value={teacherName}
-                            onChange={(e) => setTeacherName(e.target.value)}
+                            onChange={(e) => handleHomepageFieldChange('teacherName', e.target.value)}
                             className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 shadow-inner focus:outline-indigo-500"
                           />
                         </div>
@@ -676,7 +755,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <input
                             type="text"
                             value={teacherNameHi}
-                            onChange={(e) => setTeacherNameHi(e.target.value)}
+                            onChange={(e) => handleHomepageFieldChange('teacherNameHi', e.target.value)}
                             className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 shadow-inner focus:outline-indigo-500"
                           />
                         </div>
@@ -688,7 +767,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <input
                             type="text"
                             value={teacherRole}
-                            onChange={(e) => setTeacherRole(e.target.value)}
+                            onChange={(e) => handleHomepageFieldChange('teacherRole', e.target.value)}
                             className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 shadow-inner focus:outline-indigo-500"
                           />
                         </div>
@@ -697,7 +776,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <input
                             type="text"
                             value={teacherRoleHi}
-                            onChange={(e) => setTeacherRoleHi(e.target.value)}
+                            onChange={(e) => handleHomepageFieldChange('teacherRoleHi', e.target.value)}
                             className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 shadow-inner focus:outline-indigo-500"
                           />
                         </div>
@@ -709,7 +788,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <textarea
                             rows={2}
                             value={teacherBio}
-                            onChange={(e) => setTeacherBio(e.target.value)}
+                            onChange={(e) => handleHomepageFieldChange('teacherBio', e.target.value)}
                             className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 shadow-inner focus:outline-indigo-500"
                           />
                         </div>
@@ -718,7 +797,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <textarea
                             rows={2}
                             value={teacherBioHi}
-                            onChange={(e) => setTeacherBioHi(e.target.value)}
+                            onChange={(e) => handleHomepageFieldChange('teacherBioHi', e.target.value)}
                             className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 shadow-inner focus:outline-indigo-500"
                           />
                         </div>
@@ -729,7 +808,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <input
                           type="text"
                           value={teacherImageUrl}
-                          onChange={(e) => setTeacherImageUrl(e.target.value)}
+                          onChange={(e) => handleHomepageFieldChange('teacherImageUrl', e.target.value)}
                           className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 shadow-inner focus:outline-indigo-500"
                         />
                       </div>
@@ -750,7 +829,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input
                               type="text"
                               value={card1Title}
-                              onChange={(e) => setCard1Title(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card1Title', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 focus:outline-rose-450"
                             />
                           </div>
@@ -759,7 +838,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input
                               type="text"
                               value={card1TitleHi}
-                              onChange={(e) => setCard1TitleHi(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card1TitleHi', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 focus:outline-rose-450"
                             />
                           </div>
@@ -771,7 +850,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input
                               type="text"
                               value={card1Desc}
-                              onChange={(e) => setCard1Desc(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card1Desc', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 focus:outline-rose-450"
                             />
                           </div>
@@ -780,7 +859,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input
                               type="text"
                               value={card1DescHi}
-                              onChange={(e) => setCard1DescHi(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card1DescHi', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 focus:outline-rose-450"
                             />
                           </div>
@@ -791,7 +870,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <label className="text-[9px] font-black text-rose-700 uppercase block">Card Color Accent</label>
                             <select
                               value={card1Color}
-                              onChange={(e) => setCard1Color(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card1Color', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 focus:border-rose-400"
                             >
                               <option value="rose">🌹 Rose / Pink</option>
@@ -804,7 +883,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input
                               type="text"
                               value={card1Emoji}
-                              onChange={(e) => setCard1Emoji(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card1Emoji', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 text-center"
                             />
                           </div>
@@ -820,7 +899,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input
                               type="text"
                               value={card2Title}
-                              onChange={(e) => setCard2Title(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card2Title', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 focus:outline-amber-450"
                             />
                           </div>
@@ -829,7 +908,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input
                               type="text"
                               value={card2TitleHi}
-                              onChange={(e) => setCard2TitleHi(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card2TitleHi', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 focus:outline-amber-450"
                             />
                           </div>
@@ -841,7 +920,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input
                               type="text"
                               value={card2Desc}
-                              onChange={(e) => setCard2Desc(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card2Desc', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 focus:outline-amber-450"
                             />
                           </div>
@@ -850,7 +929,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input
                               type="text"
                               value={card2DescHi}
-                              onChange={(e) => setCard2DescHi(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card2DescHi', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 focus:outline-amber-450"
                             />
                           </div>
@@ -861,7 +940,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <label className="text-[9px] font-black text-amber-700 uppercase block">Card Color Accent</label>
                             <select
                               value={card2Color}
-                              onChange={(e) => setCard2Color(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card2Color', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 focus:border-amber-400"
                             >
                               <option value="rose">🌹 Rose / Pink</option>
@@ -874,7 +953,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input
                               type="text"
                               value={card2Emoji}
-                              onChange={(e) => setCard2Emoji(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card2Emoji', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 text-center"
                             />
                           </div>
@@ -890,7 +969,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input
                               type="text"
                               value={card3Title}
-                              onChange={(e) => setCard3Title(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card3Title', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 focus:outline-teal-450"
                             />
                           </div>
@@ -899,7 +978,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input
                               type="text"
                               value={card3TitleHi}
-                              onChange={(e) => setCard3TitleHi(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card3TitleHi', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 focus:outline-teal-450"
                             />
                           </div>
@@ -911,7 +990,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input
                               type="text"
                               value={card3Desc}
-                              onChange={(e) => setCard3Desc(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card3Desc', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 focus:outline-teal-450"
                             />
                           </div>
@@ -920,7 +999,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input
                               type="text"
                               value={card3DescHi}
-                              onChange={(e) => setCard3DescHi(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card3DescHi', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 focus:outline-teal-450"
                             />
                           </div>
@@ -931,7 +1010,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <label className="text-[9px] font-black text-teal-700 uppercase block">Card Color Accent</label>
                             <select
                               value={card3Color}
-                              onChange={(e) => setCard3Color(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card3Color', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 focus:border-teal-400"
                             >
                               <option value="rose">🌹 Rose / Pink</option>
@@ -944,7 +1023,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input
                               type="text"
                               value={card3Emoji}
-                              onChange={(e) => setCard3Emoji(e.target.value)}
+                              onChange={(e) => handleHomepageFieldChange('card3Emoji', e.target.value)}
                               className="w-full text-xs p-2 border rounded-lg bg-white mt-0.5 text-center"
                             />
                           </div>
@@ -956,7 +1035,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       type="submit"
                       className="w-full py-4 bg-gradient-to-r from-teal-500 to-indigo-600 hover:from-teal-600 hover:to-indigo-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-teal-100 flex items-center justify-center gap-2"
                     >
-                      <span>💾 Save Settings & Update Homepage (सहेजें और मुख्यपृष्ठ बदलें)</span>
+                      <span>💾 Done Editing & Back to Homepage (मुख्यपृष्ठ पर वापस जाएँ)</span>
                     </button>
                   </form>
                 )}
@@ -1063,22 +1142,129 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </button>
                     </form>
 
-                    {/* Existing Milestones List */}
-                    <div className="space-y-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">Present Timeline landmarks list:</span>
+                    {/* Existing Milestones List with Inline Editing */}
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">Present Timeline landmarks list:</span>
+                        <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                          ⚡ Auto-saves instantly on typing
+                        </span>
+                      </div>
                       {milestones.sort((a,b) => b.year - a.year).map((ms) => (
-                        <div key={ms.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-xl hover:bg-slate-50">
-                          <div>
-                            <span className="font-extrabold text-indigo-600 font-mono text-xs">Year {ms.year}</span>
-                            <span className="text-xs font-semibold text-slate-700 ml-3">{ms.title}</span>
-                            <span className="text-[10px] text-slate-400 ml-2 italic">({ms.category})</span>
-                          </div>
-                          <button
-                            onClick={() => handleDeleteMilestone(ms.id)}
-                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          >
-                            <DynamicIcon name="Trash2" size={14} />
-                          </button>
+                        <div key={ms.id} className="bg-white border border-slate-100 p-3 rounded-2xl shadow-xs hover:shadow-xs transition-all">
+                          {editingMilestoneId === ms.id ? (
+                            <div className="space-y-3 pt-1">
+                              <div className="grid grid-cols-4 gap-2">
+                                <div className="col-span-1">
+                                  <label className="text-[9px] font-bold text-slate-400 uppercase block">Year</label>
+                                  <input 
+                                    type="number" 
+                                    value={ms.year} 
+                                    onChange={(e) => {
+                                      const updated = milestones.map(m => m.id === ms.id ? { ...m, year: Number(e.target.value) } : m);
+                                      onUpdateMilestones(updated);
+                                    }}
+                                    className="w-full text-xs p-2 border rounded-xl bg-slate-50 font-mono focus:bg-white"
+                                  />
+                                </div>
+                                <div className="col-span-3">
+                                  <label className="text-[9px] font-bold text-slate-400 uppercase block">Title</label>
+                                  <input 
+                                    type="text" 
+                                    value={ms.title} 
+                                    onChange={(e) => {
+                                      const updated = milestones.map(m => m.id === ms.id ? { ...m, title: e.target.value } : m);
+                                      onUpdateMilestones(updated);
+                                    }}
+                                    className="w-full text-xs p-2 border rounded-xl bg-slate-50 font-semibold focus:bg-white"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 uppercase block">Subtitle</label>
+                                  <input 
+                                    type="text" 
+                                    value={ms.subtitle || ''} 
+                                    onChange={(e) => {
+                                      const updated = milestones.map(m => m.id === ms.id ? { ...m, subtitle: e.target.value || undefined } : m);
+                                      onUpdateMilestones(updated);
+                                    }}
+                                    className="w-full text-xs p-2 border rounded-xl bg-slate-50 focus:bg-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 uppercase block">Category</label>
+                                  <select 
+                                    value={ms.category} 
+                                    onChange={(e) => {
+                                      const updated = milestones.map(m => m.id === ms.id ? { ...m, category: e.target.value as any } : m);
+                                      onUpdateMilestones(updated);
+                                    }}
+                                    className="w-full text-xs p-2 border rounded-xl bg-slate-50 focus:bg-white"
+                                  >
+                                    <option value="Birth">👶 Birth</option>
+                                    <option value="Education">🎓 Education</option>
+                                    <option value="Career">💼 Career</option>
+                                    <option value="Achievement">🏆 Achievement</option>
+                                    <option value="Special Education">🧩 Special Education</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-[9px] font-bold text-slate-400 uppercase block">Events (One line per bullet event)</label>
+                                <textarea 
+                                  rows={2}
+                                  value={(ms.events || []).join('\n')}
+                                  onChange={(e) => {
+                                    const lines = e.target.value.split('\n');
+                                    const updated = milestones.map(m => m.id === ms.id ? { ...m, events: lines } : m);
+                                    onUpdateMilestones(updated);
+                                  }}
+                                  className="w-full text-xs p-2 border rounded-xl bg-slate-50 font-sans focus:bg-white"
+                                />
+                              </div>
+
+                              <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                <span className="text-[9px] text-emerald-600 font-extrabold flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                  Changes reflect live on background page!
+                                </span>
+                                <button 
+                                  type="button"
+                                  onClick={() => { setEditingMilestoneId(null); playSuccessChime(); }}
+                                  className="px-3 py-1.5 bg-indigo-600 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold cursor-pointer"
+                                >
+                                  Done / हो गया ✓
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <span className="font-extrabold text-indigo-600 font-mono text-xs">Year {ms.year}</span>
+                                <span className="text-xs font-semibold text-slate-700 ml-3">{ms.title}</span>
+                                <span className="text-[10px] text-slate-400 ml-2 italic">({ms.category})</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => { setEditingMilestoneId(ms.id); playBubbleSound(); }}
+                                  className="p-1 px-2.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-100 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1"
+                                >
+                                  <DynamicIcon name="LockOpen" size={10} />
+                                  ✏️ Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteMilestone(ms.id)}
+                                  className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                >
+                                  <DynamicIcon name="Trash2" size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1195,31 +1381,161 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </button>
                     </form>
 
-                    {/* Achievements Listing */}
-                    <div className="space-y-2">
-                      {achievements.map((ach) => (
-                        <div key={ach.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-xl">
-                          <div className="flex items-center gap-3">
-                            <span className="p-1 rounded bg-yellow-50 text-yellow-600">
-                              <DynamicIcon name={ach.iconName} size={14} />
-                            </span>
-                            <div>
-                              <p className="text-xs font-extrabold text-slate-700 leading-none">{ach.title}</p>
-                              <span className="text-[10px] text-slate-400 mt-1 block font-mono">
-                                {ach.category} &bull; {ach.issuer}
-                                {ach.linkUrl && <span className="text-teal-600 font-bold ml-2">(🔗 Has Verification File)</span>}
-                              </span>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => handleDeleteAchievement(ach.id)}
-                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
-                          >
-                            <DynamicIcon name="Trash2" size={14} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                     {/* Achievements Listing with Inline Editing */}
+                     <div className="space-y-3">
+                       <div className="flex justify-between items-center">
+                         <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">Present Achievements accolades list:</span>
+                         <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                           ⚡ Auto-saves instantly on typing
+                         </span>
+                       </div>
+                       {achievements.map((ach) => (
+                         <div key={ach.id} className="bg-white border border-slate-100 p-3 rounded-2xl shadow-xs transition-all">
+                           {editingAchievementId === ach.id ? (
+                             <div className="space-y-3 pt-1 text-left">
+                               <div className="grid grid-cols-2 gap-2">
+                                 <div>
+                                   <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Title</label>
+                                   <input
+                                     type="text"
+                                     value={ach.title}
+                                     onChange={(e) => {
+                                       const updated = achievements.map(a => a.id === ach.id ? { ...a, title: e.target.value } : a);
+                                       onUpdateAchievements(updated);
+                                     }}
+                                     className="w-full text-xs p-2 border rounded-xl bg-slate-50 font-semibold focus:bg-white"
+                                   />
+                                 </div>
+                                 <div>
+                                   <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Category</label>
+                                   <input
+                                     type="text"
+                                     value={ach.category}
+                                     onChange={(e) => {
+                                       const updated = achievements.map(a => a.id === ach.id ? { ...a, category: e.target.value } : a);
+                                       onUpdateAchievements(updated);
+                                     }}
+                                     className="w-full text-xs p-2 border rounded-xl bg-slate-50 focus:bg-white"
+                                   />
+                                 </div>
+                               </div>
+
+                               <div className="grid grid-cols-3 gap-2">
+                                 <div>
+                                   <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Issuer</label>
+                                   <input
+                                     type="text"
+                                     value={ach.issuer}
+                                     onChange={(e) => {
+                                       const updated = achievements.map(a => a.id === ach.id ? { ...a, issuer: e.target.value } : a);
+                                       onUpdateAchievements(updated);
+                                     }}
+                                     className="w-full text-xs p-2 border rounded-xl bg-slate-50 focus:bg-white"
+                                   />
+                                 </div>
+                                 <div>
+                                   <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Date</label>
+                                   <input
+                                     type="date"
+                                     value={ach.date}
+                                     onChange={(e) => {
+                                       const updated = achievements.map(a => a.id === ach.id ? { ...a, date: e.target.value } : a);
+                                       onUpdateAchievements(updated);
+                                     }}
+                                     className="w-full text-xs p-2 border rounded-xl bg-slate-50 font-mono focus:bg-white"
+                                   />
+                                 </div>
+                                 <div>
+                                   <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Icon</label>
+                                   <select
+                                     value={ach.iconName}
+                                     onChange={(e) => {
+                                       const updated = achievements.map(a => a.id === ach.id ? { ...a, iconName: e.target.value } : a);
+                                       onUpdateAchievements(updated);
+                                     }}
+                                     className="w-full text-xs p-2 border rounded-xl bg-slate-50 focus:bg-white"
+                                   >
+                                     {AVAILABLE_ACCENT_ICONS.map(ic => (
+                                       <option key={ic} value={ic}>{ic}</option>
+                                     ))}
+                                   </select>
+                                 </div>
+                               </div>
+
+                               <div>
+                                 <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Description</label>
+                                 <input
+                                   type="text"
+                                   value={ach.desc}
+                                   onChange={(e) => {
+                                     const updated = achievements.map(a => a.id === ach.id ? { ...a, desc: e.target.value } : a);
+                                     onUpdateAchievements(updated);
+                                   }}
+                                   className="w-full text-xs p-2 border rounded-xl bg-slate-50 focus:bg-white"
+                                 />
+                               </div>
+
+                               <div>
+                                 <label className="text-[9px] font-bold text-slate-400 block pb-0.5">External URL link</label>
+                                 <input
+                                   type="text"
+                                   value={ach.linkUrl || ''}
+                                   onChange={(e) => {
+                                     const updated = achievements.map(a => a.id === ach.id ? { ...a, linkUrl: e.target.value || undefined } : a);
+                                     onUpdateAchievements(updated);
+                                   }}
+                                   className="w-full text-xs p-2 border rounded-xl bg-slate-50 font-mono focus:bg-white"
+                                 />
+                               </div>
+
+                               <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                 <span className="text-[9px] text-emerald-600 font-extrabold flex items-center gap-1">
+                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                   Reflects live behind dialog!
+                                 </span>
+                                 <button 
+                                   type="button"
+                                   onClick={() => { setEditingAchievementId(null); playSuccessChime(); }}
+                                   className="px-3 py-1.5 bg-indigo-600 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold cursor-pointer"
+                                 >
+                                   Done ✓
+                                 </button>
+                               </div>
+                             </div>
+                           ) : (
+                             <div className="flex justify-between items-center">
+                               <div className="flex items-center gap-3">
+                                 <span className="p-1 rounded bg-yellow-50 text-yellow-600">
+                                   <DynamicIcon name={ach.iconName} size={14} />
+                                 </span>
+                                 <div>
+                                   <p className="text-xs font-extrabold text-slate-700 leading-none">{ach.title}</p>
+                                   <span className="text-[10px] text-slate-400 mt-1 block font-mono">
+                                     {ach.category} &bull; {ach.issuer}
+                                     {ach.linkUrl && <span className="text-teal-600 font-bold ml-2">(🔗 Has Verification File)</span>}
+                                   </span>
+                                 </div>
+                               </div>
+                               <div className="flex items-center gap-1">
+                                 <button
+                                   onClick={() => { setEditingAchievementId(ach.id); playBubbleSound(); }}
+                                   className="p-1 px-2.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-100 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1"
+                                 >
+                                   <DynamicIcon name="LockOpen" size={10} />
+                                   Edit
+                                 </button>
+                                 <button
+                                   onClick={() => handleDeleteAchievement(ach.id)}
+                                   className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                                 >
+                                   <DynamicIcon name="Trash2" size={14} />
+                                 </button>
+                               </div>
+                             </div>
+                           )}
+                         </div>
+                       ))}
+                     </div>
                   </div>
                 )}
 
@@ -1310,20 +1626,138 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </button>
                     </form>
 
-                    {/* Listing */}
-                    <div className="space-y-2">
+                    {/* Publications Listing with Inline Editing */}
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">Present Registered Publications / Notes:</span>
+                        <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                          ⚡ Auto-saves instantly on typing
+                        </span>
+                      </div>
                       {publications.map((p) => (
-                        <div key={p.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-xl">
-                          <div>
-                            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-bold rounded capitalize">{p.type}</span>
-                            <span className="text-xs font-semibold text-slate-700 ml-2">{p.title}</span>
-                          </div>
-                          <button
-                            onClick={() => handleDeletePublication(p.id)}
-                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
-                          >
-                            <DynamicIcon name="Trash2" size={14} />
-                          </button>
+                        <div key={p.id} className="bg-white border border-slate-100 p-3 rounded-2xl shadow-xs transition-all">
+                          {editingPublicationId === p.id ? (
+                            <div className="space-y-3 pt-1 text-left">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Publication Title</label>
+                                  <input
+                                    type="text"
+                                    value={p.title}
+                                    onChange={(e) => {
+                                      const updated = publications.map(pub => pub.id === p.id ? { ...pub, title: e.target.value } : pub);
+                                      onUpdatePublications(updated);
+                                    }}
+                                    className="w-full text-xs p-2 border rounded-xl bg-slate-50 font-semibold focus:bg-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Asset Format Type</label>
+                                  <select
+                                    value={p.type}
+                                    onChange={(e) => {
+                                      const updated = publications.map(pub => pub.id === p.id ? { ...pub, type: e.target.value as any } : pub);
+                                      onUpdatePublications(updated);
+                                    }}
+                                    className="w-full text-xs p-2 border rounded-xl bg-slate-50 focus:bg-white"
+                                  >
+                                    <option value="article">📄 Article Layout</option>
+                                    <option value="pdf">📕 PDF Handbook</option>
+                                    <option value="notes">📝 Classroom Notes</option>
+                                    <option value="departmental">🏛️ Departmental Standard</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-2">
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Author</label>
+                                  <input
+                                    type="text"
+                                    value={p.author || ''}
+                                    onChange={(e) => {
+                                      const updated = publications.map(pub => pub.id === p.id ? { ...pub, author: e.target.value } : pub);
+                                      onUpdatePublications(updated);
+                                    }}
+                                    className="w-full text-xs p-2 border rounded-xl bg-slate-50 focus:bg-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Register Date</label>
+                                  <input
+                                    type="date"
+                                    value={p.date}
+                                    onChange={(e) => {
+                                      const updated = publications.map(pub => pub.id === p.id ? { ...pub, date: e.target.value } : pub);
+                                      onUpdatePublications(updated);
+                                    }}
+                                    className="w-full text-xs p-2 border rounded-xl bg-slate-50 font-mono focus:bg-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Resource Link</label>
+                                  <input
+                                    type="text"
+                                    value={p.link}
+                                    onChange={(e) => {
+                                      const updated = publications.map(pub => pub.id === p.id ? { ...pub, link: e.target.value } : pub);
+                                      onUpdatePublications(updated);
+                                    }}
+                                    className="w-full text-xs p-2 border rounded-xl bg-slate-50 font-mono focus:bg-white"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Content Description Summary</label>
+                                <textarea
+                                  rows={2}
+                                  value={p.desc}
+                                  onChange={(e) => {
+                                    const updated = publications.map(pub => pub.id === p.id ? { ...pub, desc: e.target.value } : pub);
+                                    onUpdatePublications(updated);
+                                  }}
+                                  className="w-full text-xs p-2 border rounded-xl bg-slate-50 focus:bg-white"
+                                />
+                              </div>
+
+                              <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                <span className="text-[9px] text-emerald-600 font-extrabold flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                  Saved live! Updates on-the-spot!
+                                </span>
+                                <button 
+                                  type="button"
+                                  onClick={() => { setEditingPublicationId(null); playSuccessChime(); }}
+                                  className="px-3 py-1.5 bg-indigo-600 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold cursor-pointer"
+                                >
+                                  Done ✓
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-bold rounded capitalize">{p.type}</span>
+                                <span className="text-xs font-semibold text-slate-700 ml-2">{p.title}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => { setEditingPublicationId(p.id); playBubbleSound(); }}
+                                  className="p-1 px-2.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-100 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1"
+                                >
+                                  <DynamicIcon name="LockOpen" size={10} />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeletePublication(p.id)}
+                                  className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                                >
+                                  <DynamicIcon name="Trash2" size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1576,35 +2010,132 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </button>
                     </form>
 
-                    {/* Listing */}
-                    <div className="space-y-3">
-                      {socialLinks.map((soc) => (
-                        <div key={soc.id} className="flex gap-4 items-center bg-white border border-slate-100 p-3 rounded-xl justify-between">
-                          <div className="flex items-center gap-3">
-                            <span className="p-2 rounded-lg bg-teal-50 text-teal-600">
-                              <DynamicIcon name={(soc.iconName || 'Globe') as any} size={15} />
-                            </span>
-                            <div>
-                              <p className="text-xs font-extrabold text-slate-700 leading-none">{soc.name}</p>
-                              <a 
-                                href={soc.url} 
-                                target="_blank" 
-                                rel="noreferrer" 
-                                className="text-[10px] text-teal-600 hover:underline mt-1 block truncate max-w-sm font-mono"
-                              >
-                                {soc.url}
-                              </a>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => handleDeleteSocialLink(soc.id)}
-                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
-                          >
-                            <DynamicIcon name="Trash2" size={14} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                     {/* Listing with Inline Editing */}
+                     <div className="space-y-3">
+                       <div className="flex justify-between items-center">
+                         <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">Present Active Professional Handles:</span>
+                         <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                           ⚡ Auto-saves instantly on typing
+                         </span>
+                       </div>
+                       {socialLinks.map((soc) => (
+                         <div key={soc.id} className="bg-white border border-slate-100 p-3 rounded-2xl shadow-xs transition-all">
+                           {editingSocialId === soc.id ? (
+                             <div className="space-y-3 pt-1 text-left">
+                               <div className="grid grid-cols-2 gap-2">
+                                 <div>
+                                   <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Channel Title</label>
+                                   <input
+                                     type="text"
+                                     value={soc.name}
+                                     onChange={(e) => {
+                                       const updated = socialLinks.map(s => s.id === soc.id ? { ...s, name: e.target.value } : s);
+                                       onUpdateSocialLinks(updated);
+                                     }}
+                                     className="w-full text-xs p-2 border rounded-xl bg-slate-50 font-semibold focus:bg-white"
+                                   />
+                                 </div>
+                                 <div>
+                                   <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Category Description</label>
+                                   <input
+                                     type="text"
+                                     value={soc.category || ''}
+                                     onChange={(e) => {
+                                       const updated = socialLinks.map(s => s.id === soc.id ? { ...s, category: e.target.value } : s);
+                                       onUpdateSocialLinks(updated);
+                                     }}
+                                     className="w-full text-xs p-2 border rounded-xl bg-slate-50 focus:bg-white"
+                                   />
+                                 </div>
+                               </div>
+
+                               <div className="grid grid-cols-2 gap-2">
+                                 <div>
+                                   <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Full Webpage Handle Link</label>
+                                   <input
+                                     type="text"
+                                     value={soc.url}
+                                     onChange={(e) => {
+                                       const updated = socialLinks.map(s => s.id === soc.id ? { ...s, url: e.target.value } : s);
+                                       onUpdateSocialLinks(updated);
+                                     }}
+                                     className="w-full text-xs p-2 border rounded-xl bg-slate-50 font-mono focus:bg-white"
+                                   />
+                                 </div>
+                                 <div>
+                                   <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Vector Icon Accent</label>
+                                   <select
+                                     value={soc.iconName}
+                                     onChange={(e) => {
+                                       const updated = socialLinks.map(s => s.id === soc.id ? { ...s, iconName: e.target.value } : s);
+                                       onUpdateSocialLinks(updated);
+                                     }}
+                                     className="w-full text-xs p-2 border rounded-xl bg-slate-50 focus:bg-white"
+                                   >
+                                     <option value="Facebook">Facebook (Icon)</option>
+                                     <option value="Instagram">Instagram (Icon)</option>
+                                     <option value="Youtube">YouTube (Icon)</option>
+                                     <option value="Globe">Global Website (Icon)</option>
+                                     <option value="Twitter">Twitter / X (Icon)</option>
+                                     <option value="Compass">Compass (Icon)</option>
+                                     <option value="Link">Simple Link (Icon)</option>
+                                     <option value="Shield">Secure Badge (Icon)</option>
+                                   </select>
+                                 </div>
+                               </div>
+
+                               <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                 <span className="text-[9px] text-emerald-600 font-extrabold flex items-center gap-1">
+                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                   Reflects live behind dialog!
+                                 </span>
+                                 <button 
+                                   type="button"
+                                   onClick={() => { setEditingSocialId(null); playSuccessChime(); }}
+                                   className="px-3 py-1.5 bg-indigo-600 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold cursor-pointer"
+                                 >
+                                   Done ✓
+                                 </button>
+                               </div>
+                             </div>
+                           ) : (
+                             <div className="flex gap-4 items-center justify-between">
+                               <div className="flex items-center gap-3">
+                                 <span className="p-2 rounded-lg bg-teal-50 text-teal-600">
+                                   <DynamicIcon name={(soc.iconName || 'Globe') as any} size={15} />
+                                 </span>
+                                 <div>
+                                   <p className="text-xs font-extrabold text-slate-700 leading-none">{soc.name}</p>
+                                   <a 
+                                     href={soc.url} 
+                                     target="_blank" 
+                                     rel="noreferrer" 
+                                     className="text-[10px] text-teal-600 hover:underline mt-1 block truncate max-w-sm font-mono"
+                                   >
+                                     {soc.url}
+                                   </a>
+                                 </div>
+                               </div>
+                               <div className="flex items-center gap-1">
+                                 <button
+                                   onClick={() => { setEditingSocialId(soc.id); playBubbleSound(); }}
+                                   className="p-1 px-2.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-100 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1"
+                                 >
+                                   <DynamicIcon name="LockOpen" size={10} />
+                                   Edit
+                                 </button>
+                                 <button
+                                   onClick={() => handleDeleteSocialLink(soc.id)}
+                                   className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                                 >
+                                   <DynamicIcon name="Trash2" size={14} />
+                                 </button>
+                               </div>
+                             </div>
+                           )}
+                         </div>
+                       ))}
+                     </div>
                   </div>
                 )}
 
