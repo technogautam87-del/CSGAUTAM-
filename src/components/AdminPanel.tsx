@@ -257,6 +257,55 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     });
   };
 
+  const handleProfileImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      playErrorAlert();
+      alert('Please select an image file! (कृपया केवल फोटो फाइल चुनें)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 450;
+        const MAX_HEIGHT = 450;
+        
+        let width = img.width;
+        let height = img.height;
+
+        // Perfect 1:1 ratio center crop
+        const size = Math.min(width, height);
+        const offsetX = (width - size) / 2;
+        const offsetY = (height - size) / 2;
+
+        canvas.width = MAX_WIDTH;
+        canvas.height = MAX_HEIGHT;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, offsetX, offsetY, size, size, 0, 0, MAX_WIDTH, MAX_HEIGHT);
+          
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82); // High quality, compact size
+          
+          handleHomepageFieldChange('teacherImageUrl', compressedDataUrl);
+          playSuccessChime();
+        }
+      };
+      
+      if (event.target?.result) {
+        img.src = event.target.result as string;
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Keypad processing
   const handleKeyPress = (num: string) => {
     if (pinCode.length >= 4) return;
@@ -857,14 +906,115 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                       </div>
 
-                      <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase block">Teacher Profile Image URL</label>
-                        <input
-                          type="text"
-                          value={teacherImageUrl}
-                          onChange={(e) => handleHomepageFieldChange('teacherImageUrl', e.target.value)}
-                          className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 shadow-inner focus:outline-indigo-500"
-                        />
+                      {/* Comprehensive Dual-Mode Teacher Profile Image Uploader */}
+                      <div className="bg-slate-100/50 p-4 rounded-2xl border border-slate-200/60 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                            📸 PROFILE IMAGE CONTROLLER (प्रोफ़ाइल फ़ोटो नियंत्रक)
+                          </span>
+                          <span className="text-[9px] text-emerald-600 font-extrabold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Auto-optimizes & Auto-shrinks / तत्काल संकुचन
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col md:flex-row gap-5 items-center">
+                          {/* Left: Professional 1:1 Live Preview */}
+                          <div className="flex flex-col items-center justify-center bg-white p-3 rounded-2xl border border-slate-100 shadow-sm shrink-0">
+                            <span className="text-[9px] font-black text-indigo-900 mb-2 uppercase tracking-tight">Live Profile Preview</span>
+                            <div className="relative w-28 h-28 rounded-2xl overflow-hidden border-4 border-indigo-50 shadow-md flex items-center justify-center bg-slate-50">
+                              {teacherImageUrl ? (
+                                <img
+                                  src={teacherImageUrl}
+                                  alt="Preview"
+                                  className="w-full h-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                  onError={(e) => {
+                                    // Fallback for broken link
+                                    (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=300';
+                                  }}
+                                />
+                              ) : (
+                                <div className="text-slate-400 flex flex-col items-center gap-1">
+                                  <DynamicIcon name="User" size={24} />
+                                  <span className="text-[9px]">No Photo</span>
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-[10px] font-mono font-bold text-slate-400 mt-2">450 x 450 px</span>
+                          </div>
+
+                          {/* Right: Direct File Upload Area & Web URL Field */}
+                          <div className="flex-1 w-full space-y-3">
+                            {/* Option 1: Direct Drop & Select File Uploader */}
+                            <div>
+                              <span className="text-[10px] font-extrabold text-slate-500 block mb-1">
+                                Option A: Direct Local Photo Upload (सीधे फ़ोटो अपलोड करें)
+                              </span>
+                              
+                              <label className="group flex flex-col items-center justify-center border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-white hover:bg-indigo-50/30 p-4 rounded-xl cursor-pointer transition-all duration-200 text-center shadow-xs">
+                                <div className="p-2 bg-indigo-50 group-hover:bg-indigo-100/60 text-indigo-600 rounded-full transition-colors mb-2">
+                                  <DynamicIcon name="Camera" size={18} className="animate-bounce" />
+                                </div>
+                                <span className="text-xs font-bold text-indigo-950 block">
+                                  Select Photo from Device / फ़ोटो चुनें
+                                </span>
+                                <span className="text-[9px] text-slate-400 mt-1 uppercase font-mono tracking-tight block">
+                                  JPEG / PNG / WEBP file (Auto Crop to Square)
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleProfileImageUpload}
+                                  className="hidden"
+                                />
+                              </label>
+                            </div>
+
+                            {/* Divider with local and web */}
+                            <div className="flex items-center gap-2 py-0.5">
+                              <span className="h-px bg-slate-200 flex-1" />
+                              <span className="text-[9px] font-black text-slate-400 uppercase font-mono">OR / या</span>
+                              <span className="h-px bg-slate-200 flex-1" />
+                            </div>
+
+                            {/* Option 2: Web Image / Drive URL Link */}
+                            <div>
+                              <label className="text-[10px] font-extrabold text-slate-500 block mb-1">
+                                Option B: Enter image link / Google Drive share link (वेब / ड्राइव लिंक)
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  placeholder="Paste Google Drive link or Web URL..."
+                                  value={teacherImageUrl.startsWith('data:') ? '[Local Uploaded Base64 Image]' : teacherImageUrl}
+                                  onChange={(e) => {
+                                    // Only allow typing URL if not local uploaded placeholder
+                                    if (e.target.value === '[Local Uploaded Base64 Image]') return;
+                                    handleHomepageFieldChange('teacherImageUrl', e.target.value);
+                                  }}
+                                  className="w-full text-xs p-2.5 pr-8 border rounded-xl bg-white shadow-inner focus:outline-indigo-500 font-mono"
+                                />
+                                {teacherImageUrl.startsWith('data:') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleHomepageFieldChange('teacherImageUrl', 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=300');
+                                      playBubbleSound();
+                                    }}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-rose-500 hover:text-rose-700 p-1 rounded-md hover:bg-rose-50 transition-colors"
+                                    title="Reset / रीसेट"
+                                  >
+                                    <DynamicIcon name="RefreshCcw" size={12} />
+                                  </button>
+                                )}
+                              </div>
+                              <span className="text-[9px] text-slate-400 block mt-1 font-sans">
+                                Drive links are automatically converted and optimized!
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
