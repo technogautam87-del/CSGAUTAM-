@@ -151,13 +151,32 @@ export default function App() {
     }
 
     // Homepage Config
-    const cachedHomepage = localStorage.getItem('db_homepage_config');
-    if (cachedHomepage) {
-      setHomepageConfig(JSON.parse(cachedHomepage));
-    } else {
-      setHomepageConfig(INITIAL_HOMEPAGE_CONFIG);
-      localStorage.setItem('db_homepage_config', JSON.stringify(INITIAL_HOMEPAGE_CONFIG));
-    }
+    fetch('/api/homepage')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.status !== 'none' && data.teacherImageUrl) {
+          setHomepageConfig(data);
+          localStorage.setItem('db_homepage_config', JSON.stringify(data));
+        } else {
+          const cachedHomepage = localStorage.getItem('db_homepage_config');
+          if (cachedHomepage) {
+            setHomepageConfig(JSON.parse(cachedHomepage));
+          } else {
+            setHomepageConfig(INITIAL_HOMEPAGE_CONFIG);
+            localStorage.setItem('db_homepage_config', JSON.stringify(INITIAL_HOMEPAGE_CONFIG));
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Backend server api offline, falling back to LocalStorage:', err);
+        const cachedHomepage = localStorage.getItem('db_homepage_config');
+        if (cachedHomepage) {
+          setHomepageConfig(JSON.parse(cachedHomepage));
+        } else {
+          setHomepageConfig(INITIAL_HOMEPAGE_CONFIG);
+          localStorage.setItem('db_homepage_config', JSON.stringify(INITIAL_HOMEPAGE_CONFIG));
+        }
+      });
 
     // Hearts/Appreciations
     const cachedAppr = localStorage.getItem('db_appreciation');
@@ -207,6 +226,20 @@ export default function App() {
   const handleUpdateHomepageConfig = (updated: HomepageConfig) => {
     setHomepageConfig(updated);
     localStorage.setItem('db_homepage_config', JSON.stringify(updated));
+    
+    // Save/publish to the backend server so it is permanent and visible globally to everyone!
+    fetch('/api/homepage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated),
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Homepage config published globally:', data);
+    })
+    .catch(err => {
+      console.error('Error publishing homepage config globally:', err);
+    });
   };
 
   const handleSendAppreciation = () => {
