@@ -1,0 +1,21 @@
+{
+  "entities": {
+    "GlobalAppData": {
+      "title": "Global App Data",
+      "description": "Dynamic layout configurations for educator website.",
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "object",
+          "description": "Serialized data value (string, array, or object) for the specific document configuration key."
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/global_data/{key}": {
+      "schema": "GlobalAppData",
+      "description": "Stores individual dynamic content keys (e.g. homepageConfig, socialLinks, milestones etc.)"
+    }
+  }
+}

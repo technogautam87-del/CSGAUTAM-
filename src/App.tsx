@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { db } from './firebase';
+import { doc, setDoc, onSnapshot, collection } from 'firebase/firestore';
 import { TimelineMilestone, Publication, NewsCutting, LiveVideo, Achievement, SliderPhoto, SocialLink, HomepageConfig } from './types';
 import { InteractiveAvatar } from './components/InteractiveAvatar';
 import {
@@ -71,8 +73,7 @@ export default function App() {
     };
   }, []);
 
-  // Initialize and retrieve data from LocalStorage
-  // Initialize and retrieve data from LocalStorage & Live Express Server
+  // Initialize and retrieve data from LocalStorage & Live Firebase Firestore Realtime Database
   useEffect(() => {
     // Language preference
     const cachedLang = localStorage.getItem('db_lang');
@@ -88,176 +89,100 @@ export default function App() {
     setPageViews(viewed);
     localStorage.setItem('db_page_views', String(viewed));
 
-    // Fetch unified global data from Express Server
-    fetch('/api/global_data')
-      .then(res => res.json())
-      .then((serverData: any) => {
-        console.log('Successfully synced live server data:', serverData);
-        
-        // 1. Milestones
-        if (serverData.milestones && Array.isArray(serverData.milestones)) {
-          setMilestones(serverData.milestones);
-          localStorage.setItem('db_milestones', JSON.stringify(serverData.milestones));
-        } else {
-          const cachedMilestones = localStorage.getItem('db_milestones');
-          if (cachedMilestones) {
-            setMilestones(JSON.parse(cachedMilestones));
-          } else {
-            setMilestones(INITIAL_TIMELINE_MILESTONES);
-            localStorage.setItem('db_milestones', JSON.stringify(INITIAL_TIMELINE_MILESTONES));
-          }
-        }
+    // Load initial fallbacks from LocalStorage or constants to avoid layout lag
+    const cMilestones = localStorage.getItem('db_milestones');
+    setMilestones(cMilestones ? JSON.parse(cMilestones) : INITIAL_TIMELINE_MILESTONES);
 
-        // 2. Publications
-        if (serverData.publications && Array.isArray(serverData.publications)) {
-          setPublications(serverData.publications);
-          localStorage.setItem('db_publications', JSON.stringify(serverData.publications));
-        } else {
-          const cachedPubs = localStorage.getItem('db_publications');
-          if (cachedPubs) {
-            setPublications(JSON.parse(cachedPubs));
-          } else {
-            setPublications(INITIAL_PUBLICATIONS);
-            localStorage.setItem('db_publications', JSON.stringify(INITIAL_PUBLICATIONS));
-          }
-        }
+    const cPubs = localStorage.getItem('db_publications');
+    setPublications(cPubs ? JSON.parse(cPubs) : INITIAL_PUBLICATIONS);
 
-        // 3. News (cuttings)
-        if (serverData.newsCuttings && Array.isArray(serverData.newsCuttings)) {
-          setNewsCuttings(serverData.newsCuttings);
-          localStorage.setItem('db_news', JSON.stringify(serverData.newsCuttings));
-        } else {
-          const cachedNews = localStorage.getItem('db_news');
-          if (cachedNews) {
-            setNewsCuttings(JSON.parse(cachedNews));
-          } else {
-            setNewsCuttings(INITIAL_NEWS_CUTTINGS);
-            localStorage.setItem('db_news', JSON.stringify(INITIAL_NEWS_CUTTINGS));
-          }
-        }
+    const cNews = localStorage.getItem('db_news');
+    setNewsCuttings(cNews ? JSON.parse(cNews) : INITIAL_NEWS_CUTTINGS);
 
-        // 4. Videos
-        if (serverData.videos && Array.isArray(serverData.videos)) {
-          setVideos(serverData.videos);
-          localStorage.setItem('db_videos', JSON.stringify(serverData.videos));
-        } else {
-          const cachedVideos = localStorage.getItem('db_videos');
-          if (cachedVideos) {
-            setVideos(JSON.parse(cachedVideos));
-          } else {
-            setVideos(INITIAL_VIDEOS);
-            localStorage.setItem('db_videos', JSON.stringify(INITIAL_VIDEOS));
-          }
-        }
+    const cVideos = localStorage.getItem('db_videos');
+    setVideos(cVideos ? JSON.parse(cVideos) : INITIAL_VIDEOS);
 
-        // 5. Achievements
-        if (serverData.achievements && Array.isArray(serverData.achievements)) {
-          setAchievements(serverData.achievements);
-          localStorage.setItem('db_achievements', JSON.stringify(serverData.achievements));
-        } else {
-          const cachedAchievements = localStorage.getItem('db_achievements');
-          if (cachedAchievements) {
-            setAchievements(JSON.parse(cachedAchievements));
-          } else {
-            setAchievements(INITIAL_ACHIEVEMENTS);
-            localStorage.setItem('db_achievements', JSON.stringify(INITIAL_ACHIEVEMENTS));
-          }
-        }
+    const cAchievements = localStorage.getItem('db_achievements');
+    setAchievements(cAchievements ? JSON.parse(cAchievements) : INITIAL_ACHIEVEMENTS);
 
-        // 6. Slides
-        if (serverData.slides && Array.isArray(serverData.slides)) {
-          setSlides(serverData.slides);
-          localStorage.setItem('db_slides', JSON.stringify(serverData.slides));
-        } else {
-          const cachedSlides = localStorage.getItem('db_slides');
-          if (cachedSlides) {
-            setSlides(JSON.parse(cachedSlides));
-          } else {
-            setSlides(INITIAL_SLIDER_PHOTOS);
-            localStorage.setItem('db_slides', JSON.stringify(INITIAL_SLIDER_PHOTOS));
-          }
-        }
+    const cSlides = localStorage.getItem('db_slides');
+    setSlides(cSlides ? JSON.parse(cSlides) : INITIAL_SLIDER_PHOTOS);
 
-        // 7. Social Links
-        if (serverData.socialLinks && Array.isArray(serverData.socialLinks)) {
-          setSocialLinks(serverData.socialLinks);
-          localStorage.setItem('db_social_links', JSON.stringify(serverData.socialLinks));
-        } else {
-          const cachedSocial = localStorage.getItem('db_social_links');
-          if (cachedSocial) {
-            setSocialLinks(JSON.parse(cachedSocial));
-          } else {
-            setSocialLinks(INITIAL_SOCIAL_LINKS);
-            localStorage.setItem('db_social_links', JSON.stringify(INITIAL_SOCIAL_LINKS));
-          }
-        }
+    const cSocial = localStorage.getItem('db_social_links');
+    setSocialLinks(cSocial ? JSON.parse(cSocial) : INITIAL_SOCIAL_LINKS);
 
-        // 8. Homepage Config
-        if (serverData.homepageConfig && typeof serverData.homepageConfig === 'object') {
-          setHomepageConfig(serverData.homepageConfig);
-          localStorage.setItem('db_homepage_config', JSON.stringify(serverData.homepageConfig));
-        } else {
-          const cachedHomepage = localStorage.getItem('db_homepage_config');
-          if (cachedHomepage) {
-            setHomepageConfig(JSON.parse(cachedHomepage));
-          } else {
-            setHomepageConfig(INITIAL_HOMEPAGE_CONFIG);
-            localStorage.setItem('db_homepage_config', JSON.stringify(INITIAL_HOMEPAGE_CONFIG));
-          }
-        }
-      })
-      .catch((err) => {
-        console.warn('Backend server API unreachable, loading fallback LocalStorage keys:', err);
-        
-        // Fallbacks
-        const cMilestones = localStorage.getItem('db_milestones');
-        setMilestones(cMilestones ? JSON.parse(cMilestones) : INITIAL_TIMELINE_MILESTONES);
-
-        const cPubs = localStorage.getItem('db_publications');
-        setPublications(cPubs ? JSON.parse(cPubs) : INITIAL_PUBLICATIONS);
-
-        const cNews = localStorage.getItem('db_news');
-        setNewsCuttings(cNews ? JSON.parse(cNews) : INITIAL_NEWS_CUTTINGS);
-
-        const cVideos = localStorage.getItem('db_videos');
-        setVideos(cVideos ? JSON.parse(cVideos) : INITIAL_VIDEOS);
-
-        const cAchievements = localStorage.getItem('db_achievements');
-        setAchievements(cAchievements ? JSON.parse(cAchievements) : INITIAL_ACHIEVEMENTS);
-
-        const cSlides = localStorage.getItem('db_slides');
-        setSlides(cSlides ? JSON.parse(cSlides) : INITIAL_SLIDER_PHOTOS);
-
-        const cSocial = localStorage.getItem('db_social_links');
-        setSocialLinks(cSocial ? JSON.parse(cSocial) : INITIAL_SOCIAL_LINKS);
-
-        const cHomepage = localStorage.getItem('db_homepage_config');
-        setHomepageConfig(cHomepage ? JSON.parse(cHomepage) : INITIAL_HOMEPAGE_CONFIG);
-      });
+    const cHomepage = localStorage.getItem('db_homepage_config');
+    setHomepageConfig(cHomepage ? JSON.parse(cHomepage) : INITIAL_HOMEPAGE_CONFIG);
 
     // Hearts/Appreciations
     const cachedAppr = localStorage.getItem('db_appreciation');
     if (cachedAppr) {
       setAppreciationCount(Number(cachedAppr));
     }
-
+    
     setIsMuted(getMuteState());
+
+    // Subscribe to global real-time cloud data updates from Firestore
+    console.log("Subscribing to Firestore real-time updates for global educator profile...");
+    const unsubscribe = onSnapshot(collection(db, 'global_data'), (snapshot) => {
+      snapshot.forEach((doc) => {
+        const key = doc.id;
+        const data = doc.data();
+        const value = data.value;
+        if (!value) return;
+
+        if (key === 'milestones' && Array.isArray(value)) {
+          setMilestones(value);
+          localStorage.setItem('db_milestones', JSON.stringify(value));
+        } else if (key === 'publications' && Array.isArray(value)) {
+          setPublications(value);
+          localStorage.setItem('db_publications', JSON.stringify(value));
+        } else if (key === 'newsCuttings' && Array.isArray(value)) {
+          setNewsCuttings(value);
+          localStorage.setItem('db_news', JSON.stringify(value));
+        } else if (key === 'videos' && Array.isArray(value)) {
+          setVideos(value);
+          localStorage.setItem('db_videos', JSON.stringify(value));
+        } else if (key === 'achievements' && Array.isArray(value)) {
+          setAchievements(value);
+          localStorage.setItem('db_achievements', JSON.stringify(value));
+        } else if (key === 'slides' && Array.isArray(value)) {
+          setSlides(value);
+          localStorage.setItem('db_slides', JSON.stringify(value));
+        } else if (key === 'socialLinks' && Array.isArray(value)) {
+          setSocialLinks(value);
+          localStorage.setItem('db_social_links', JSON.stringify(value));
+        } else if (key === 'homepageConfig' && typeof value === 'object') {
+          setHomepageConfig(value);
+          localStorage.setItem('db_homepage_config', JSON.stringify(value));
+        }
+      });
+    }, (error) => {
+      console.warn("Firestore collection subscription failed:", error);
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
-  // Helper to save server-side immediately
-  const saveKeyToServer = (key: string, value: any) => {
+  // Helper to save server-side and Firestore immediately for true global updates
+  const saveKeyToServer = async (key: string, value: any) => {
+    // 1. Back up to the local express server JSON file (non-blocking)
     fetch('/api/global_data', {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key, value }),
     })
-    .then(res => res.json())
-    .then(data => {
-      console.log(`Successfully persisted ${key} to backend server globally!`, data);
-    })
-    .catch(err => {
-      console.error(`Error persisting ${key} to backend server:`, err);
-    });
+    .catch(err => console.warn("API Server fallback save failed (non-blocking):", err));
+
+    // 2. Commit directly to global Cloud Firestore so every browser tab globally is updated in real-time
+    try {
+      await setDoc(doc(db, "global_data", key), { value });
+      console.log(`Successfully persisted ${key} to Cloud Firestore globally!`);
+    } catch (err) {
+      console.error(`Error saving ${key} to Cloud Firestore:`, err);
+    }
   };
 
   // Update helper triggers with server-side live sync

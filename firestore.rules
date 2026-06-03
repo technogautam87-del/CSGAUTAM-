@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Dynamic website elements - accessible publicly so all guests see updates live
+    match /global_data/{key} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

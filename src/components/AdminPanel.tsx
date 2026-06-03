@@ -107,7 +107,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [pinError, setPinError] = useState<boolean>(false);
 
   // Section selectors
-  const [activeAdminTab, setActiveAdminTab] = useState<'homepage' | 'timeline' | 'achievements' | 'publications' | 'slides' | 'social'>('homepage');
+  const [activeAdminTab, setActiveAdminTab] = useState<'homepage' | 'timeline' | 'achievements' | 'publications' | 'slides' | 'social' | 'news' | 'videos'>('homepage');
 
   // Form states - Homepage & Pedagogy Cards Editing
   const [heroTitle, setHeroTitle] = useState(homepageConfig.heroTitle || '');
@@ -189,6 +189,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [editingAchievementId, setEditingAchievementId] = useState<string | null>(null);
   const [editingPublicationId, setEditingPublicationId] = useState<string | null>(null);
   const [editingSocialId, setEditingSocialId] = useState<string | null>(null);
+  const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
+  const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
+
+  // Form states - News Cuttings
+  const [newNewsTitle, setNewNewsTitle] = useState<string>('');
+  const [newNewsTitleHi, setNewNewsTitleHi] = useState<string>('');
+  const [newNewsImageUrl, setNewNewsImageUrl] = useState<string>('');
+  const [newNewsSource, setNewNewsSource] = useState<string>('');
+  const [newNewsSourceHi, setNewNewsSourceHi] = useState<string>('');
+  const [newNewsDate, setNewNewsDate] = useState<string>('2026-06-03');
+  const [newNewsSummary, setNewNewsSummary] = useState<string>('');
+  const [newNewsSummaryHi, setNewNewsSummaryHi] = useState<string>('');
+
+  // Form states - Videos
+  const [newVideoTitle, setNewVideoTitle] = useState<string>('');
+  const [newVideoTitleHi, setNewVideoTitleHi] = useState<string>('');
+  const [newVideoUrl, setNewVideoUrl] = useState<string>('');
+  const [newVideoDescription, setNewVideoDescription] = useState<string>('');
+  const [newVideoDescriptionHi, setNewVideoDescriptionHi] = useState<string>('');
+  const [newVideoBadge, setNewVideoBadge] = useState<string>('');
+  const [newVideoBadgeHi, setNewVideoBadgeHi] = useState<string>('');
 
   // Instantly propagate homepage config edits on keypress
   const handleHomepageFieldChange = (field: keyof HomepageConfig, value: string) => {
@@ -571,6 +592,75 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     playBubbleSound();
   };
 
+  const handleAddNewsCutting = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNewsTitle.trim()) return;
+
+    const added: NewsCutting = {
+      id: 'news-' + Date.now(),
+      title: newNewsTitle.trim(),
+      titleHi: newNewsTitleHi.trim() || undefined,
+      imageUrl: newNewsImageUrl.trim() || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&q=80&w=600',
+      source: newNewsSource.trim() || 'Media Source (मीडिया)',
+      sourceHi: newNewsSourceHi.trim() || undefined,
+      date: newNewsDate,
+      summary: newNewsSummary.trim(),
+      summaryHi: newNewsSummaryHi.trim() || undefined,
+    };
+
+    onUpdateNewsCuttings([...newsCuttings, added]);
+    playSuccessChime();
+
+    // Reset
+    setNewNewsTitle('');
+    setNewNewsTitleHi('');
+    setNewNewsImageUrl('');
+    setNewNewsSource('');
+    setNewNewsSourceHi('');
+    setNewNewsSummary('');
+    setNewNewsSummaryHi('');
+  };
+
+  const handleDeleteNewsCutting = (id: string) => {
+    const remaining = newsCuttings.filter(item => item.id !== id);
+    onUpdateNewsCuttings(remaining);
+    playBubbleSound();
+  };
+
+  const handleAddVideo = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newVideoTitle.trim() || !newVideoUrl.trim()) return;
+
+    const added: LiveVideo = {
+      id: 'vid-' + Date.now(),
+      title: newVideoTitle.trim(),
+      titleHi: newVideoTitleHi.trim() || undefined,
+      videoUrl: tryTransformGoogleDriveUrl(newVideoUrl.trim(), 800),
+      description: newVideoDescription.trim(),
+      descriptionHi: newVideoDescriptionHi.trim() || undefined,
+      badge: newVideoBadge.trim() || undefined,
+      badgeHi: newVideoBadgeHi.trim() || undefined,
+    };
+
+    onUpdateVideos([...videos, added]);
+    playSuccessChime();
+
+    // Reset
+    setNewVideoTitle('');
+    setNewVideoTitleHi('');
+    setNewVideoUrl('');
+    setNewVideoDescription('');
+    setNewVideoDescriptionHi('');
+    setNewVideoBadge('');
+    setNewVideoBadgeHi('');
+  };
+
+  const handleDeleteVideo = (id: string) => {
+    const remaining = videos.filter(item => item.id !== id);
+    onUpdateVideos(remaining);
+    playBubbleSound();
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4">
       <AnimatePresence mode="wait">
@@ -728,6 +818,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   { key: 'achievements', icon: 'Award', label: 'Achievements' },
                   { key: 'publications', icon: 'BookOpen', label: 'Publications' },
                   { key: 'slides', icon: 'Image', label: 'Photo Gallery (फोटो गैलरी)' },
+                  { key: 'news', icon: 'FileText', label: 'News / Media Cuttings' },
+                  { key: 'videos', icon: 'Tv', label: 'Video Broadcast' },
                   { key: 'social', icon: 'Globe', label: 'Social Networks' }
                 ].map((item) => (
                   <button
@@ -2133,6 +2225,533 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               </div>
                             )}
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {activeAdminTab === 'news' && (
+                  <div className="md:col-span-9 p-6 overflow-y-auto max-h-[80vh] space-y-6 text-left">
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                      <div>
+                        <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                          <DynamicIcon name="FileText" size={16} />
+                          News & Media Cuttings (समाचार / मीडिया कतरन)
+                        </h4>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Manage newspapers, press releases, media coverage graphics and write-ups shown on the front page.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Add Form */}
+                    <form onSubmit={handleAddNewsCutting} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3 mb-6">
+                      <div className="text-xs font-bold text-indigo-600 mb-1 flex items-center gap-1">
+                        <span>📰 Add New Media Cutting (नया समाचार पत्र कतरन जोड़ें)</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block pb-1">Title (English) *</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Special Educator Honored by Governor"
+                            value={newNewsTitle}
+                            onChange={(e) => setNewNewsTitle(e.target.value)}
+                            className="w-full text-xs p-2 border rounded-xl bg-white focus:ring-1 focus:ring-indigo-500"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block pb-1">Title (हिन्दी)</label>
+                          <input
+                            type="text"
+                            placeholder="जैसे: राज्यपाल द्वारा विशेष शिक्षक सम्मानित"
+                            value={newNewsTitleHi}
+                            onChange={(e) => setNewNewsTitleHi(e.target.value)}
+                            className="w-full text-xs p-2 border rounded-xl bg-white focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="md:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-500 block pb-1">Image URL (Unsplash or direct link)</label>
+                          <input
+                            type="text"
+                            placeholder="https://..."
+                            value={newNewsImageUrl}
+                            onChange={(e) => setNewNewsImageUrl(e.target.value)}
+                            className="w-full text-xs p-2 border rounded-xl bg-white focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block pb-1">Publishing Date</label>
+                          <input
+                            type="date"
+                            value={newNewsDate}
+                            onChange={(e) => setNewNewsDate(e.target.value)}
+                            className="w-full text-xs p-2 border rounded-xl bg-white focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block pb-1">Media House (English)</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Dainik Bhaskar"
+                            value={newNewsSource}
+                            onChange={(e) => setNewNewsSource(e.target.value)}
+                            className="w-full text-xs p-2 border rounded-xl bg-white focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block pb-1">Media House (हिन्दी)</label>
+                          <input
+                            type="text"
+                            placeholder="जैसे: दैनिक भास्कर"
+                            value={newNewsSourceHi}
+                            onChange={(e) => setNewNewsSourceHi(e.target.value)}
+                            className="w-full text-xs p-2 border rounded-xl bg-white focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block pb-1">Summary / Brief (English)</label>
+                          <textarea
+                            placeholder="Coverage outline..."
+                            value={newNewsSummary}
+                            onChange={(e) => setNewNewsSummary(e.target.value)}
+                            className="w-full text-xs p-2 border rounded-xl bg-white h-16 resize-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block pb-1">Summary / Brief (हिन्दी)</label>
+                          <textarea
+                            placeholder="विवरण हिन्दी में..."
+                            value={newNewsSummaryHi}
+                            onChange={(e) => setNewNewsSummaryHi(e.target.value)}
+                            className="w-full text-xs p-2 border rounded-xl bg-white h-16 resize-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-1">
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+                        >
+                          + Append Media Item
+                        </button>
+                      </div>
+                    </form>
+
+                    {/* News items list with inline editing inputs */}
+                    <div className="space-y-3 font-sans">
+                      <p className="text-xs font-bold text-slate-400 font-mono">Total Live Media Covers: {newsCuttings.length}</p>
+                      
+                      {newsCuttings.map((news) => (
+                        <div 
+                          key={news.id} 
+                          className="p-4 bg-white rounded-2xl border border-slate-100/90 shadow-sm transition-all"
+                        >
+                          {editingNewsId === news.id ? (
+                            <div className="space-y-3 text-left">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Title (EN)</label>
+                                  <input
+                                    type="text"
+                                    value={news.title}
+                                    onChange={(e) => {
+                                      const updated = newsCuttings.map(n => n.id === news.id ? { ...n, title: e.target.value } : n);
+                                      onUpdateNewsCuttings(updated);
+                                    }}
+                                    className="w-full text-xs p-1.5 border rounded-lg bg-slate-50 focus:bg-white font-semibold"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Title (HI)</label>
+                                  <input
+                                    type="text"
+                                    value={news.titleHi || ''}
+                                    onChange={(e) => {
+                                      const updated = newsCuttings.map(n => n.id === news.id ? { ...n, titleHi: e.target.value } : n);
+                                      onUpdateNewsCuttings(updated);
+                                    }}
+                                    className="w-full text-xs p-1.5 border rounded-lg bg-slate-50 focus:bg-white font-semibold"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <div className="md:col-span-2">
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Image URL</label>
+                                  <input
+                                    type="text"
+                                    value={news.imageUrl}
+                                    onChange={(e) => {
+                                      const updated = newsCuttings.map(n => n.id === news.id ? { ...n, imageUrl: e.target.value } : n);
+                                      onUpdateNewsCuttings(updated);
+                                    }}
+                                    className="w-full text-xs p-1.5 border rounded-lg bg-slate-50 font-mono focus:bg-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Date</label>
+                                  <input
+                                    type="date"
+                                    value={news.date}
+                                    onChange={(e) => {
+                                      const updated = newsCuttings.map(n => n.id === news.id ? { ...n, date: e.target.value } : n);
+                                      onUpdateNewsCuttings(updated);
+                                    }}
+                                    className="w-full text-xs p-1.5 border rounded-lg bg-slate-50 focus:bg-white"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Media House (EN)</label>
+                                  <input
+                                    type="text"
+                                    value={news.source}
+                                    onChange={(e) => {
+                                      const updated = newsCuttings.map(n => n.id === news.id ? { ...n, source: e.target.value } : n);
+                                      onUpdateNewsCuttings(updated);
+                                    }}
+                                    className="w-full text-xs p-1.5 border rounded-lg bg-slate-50 focus:bg-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Media House (HI)</label>
+                                  <input
+                                    type="text"
+                                    value={news.sourceHi || ''}
+                                    onChange={(e) => {
+                                      const updated = newsCuttings.map(n => n.id === news.id ? { ...n, sourceHi: e.target.value } : n);
+                                      onUpdateNewsCuttings(updated);
+                                    }}
+                                    className="w-full text-xs p-1.5 border rounded-lg bg-slate-50 focus:bg-white"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Summary (EN)</label>
+                                  <textarea
+                                    value={news.summary}
+                                    onChange={(e) => {
+                                      const updated = newsCuttings.map(n => n.id === news.id ? { ...n, summary: e.target.value } : n);
+                                      onUpdateNewsCuttings(updated);
+                                    }}
+                                    className="w-full text-xs p-1.5 border rounded-lg bg-slate-50 focus:bg-white h-12"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Summary (HI)</label>
+                                  <textarea
+                                    value={news.summaryHi || ''}
+                                    onChange={(e) => {
+                                      const updated = newsCuttings.map(n => n.id === news.id ? { ...n, summaryHi: e.target.value } : n);
+                                      onUpdateNewsCuttings(updated);
+                                    }}
+                                    className="w-full text-xs p-1.5 border rounded-lg bg-slate-50 focus:bg-white h-12"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex justify-end pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => { setEditingNewsId(null); playSuccessChime(); }}
+                                  className="px-3 py-1 bg-indigo-600 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold cursor-pointer"
+                                >
+                                  Done ✓
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex gap-4 items-center justify-between font-sans">
+                              <div className="flex items-center gap-3">
+                                {news.imageUrl && (
+                                  <img 
+                                    src={news.imageUrl} 
+                                    className="w-12 h-12 object-cover rounded-xl border border-slate-100 placeholder-news" 
+                                    alt={news.title}
+                                    referrerPolicy="no-referrer"
+                                  />
+                                )}
+                                <div className="text-left font-sans">
+                                  <p className="text-xs font-extrabold text-slate-700 leading-tight">
+                                    {news.title}
+                                  </p>
+                                  <p className="text-[10px] text-indigo-600 mt-1 font-semibold">
+                                    {news.source} • {news.date}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <button
+                                  onClick={() => { setEditingNewsId(news.id); playBubbleSound(); }}
+                                  className="p-1 px-2.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-100 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1"
+                                >
+                                  <DynamicIcon name="LockOpen" size={10} />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteNewsCutting(news.id)}
+                                  className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                                >
+                                  <DynamicIcon name="Trash2" size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {activeAdminTab === 'videos' && (
+                  <div className="md:col-span-9 p-6 overflow-y-auto max-h-[80vh] space-y-6 text-left">
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                      <div>
+                        <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                          <DynamicIcon name="Tv" size={16} />
+                          Video Broadcasts (वीडियो प्रसारण)
+                        </h4>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Manage video embeds, lectures, interviews, training webinars and live streams.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Add Form */}
+                    <form onSubmit={handleAddVideo} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3 mb-6">
+                      <div className="text-xs font-bold text-indigo-600 mb-1 flex items-center gap-1">
+                        <span>📹 Add New Video Link (नया वीडियो लिंक जोड़ें)</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block pb-1">Title (English) *</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Inclusive Education Speech"
+                            value={newVideoTitle}
+                            onChange={(e) => setNewVideoTitle(e.target.value)}
+                            className="w-full text-xs p-2 border rounded-xl bg-white focus:ring-1 focus:ring-indigo-500"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block pb-1">Title (हिन्दी)</label>
+                          <input
+                            type="text"
+                            placeholder="जैसे: समावेशी शिक्षा पर व्याख्यान"
+                            value={newVideoTitleHi}
+                            onChange={(e) => setNewVideoTitleHi(e.target.value)}
+                            className="w-full text-xs p-2 border rounded-xl bg-white focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="md:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-500 block pb-1">Video Link (YouTube, Drive or embed url) *</label>
+                          <input
+                            type="text"
+                            placeholder="https://..."
+                            value={newVideoUrl}
+                            onChange={(e) => setNewVideoUrl(e.target.value)}
+                            className="w-full text-xs p-2 border rounded-xl bg-white focus:ring-1 focus:ring-indigo-500 font-mono"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block pb-1">Video Badge Label</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. YouTube Live"
+                            value={newVideoBadge}
+                            onChange={(e) => setNewVideoBadge(e.target.value)}
+                            className="w-full text-xs p-2 border rounded-xl bg-white focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block pb-1">Description (English)</label>
+                          <textarea
+                            placeholder="Context / notes regarding this broadcast..."
+                            value={newVideoDescription}
+                            onChange={(e) => setNewVideoDescription(e.target.value)}
+                            className="w-full text-xs p-2 border rounded-xl bg-white h-16 resize-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block pb-1">Description (हिन्दी)</label>
+                          <textarea
+                            placeholder="विवरण हिन्दी में..."
+                            value={newVideoDescriptionHi}
+                            onChange={(e) => setNewVideoDescriptionHi(e.target.value)}
+                            className="w-full text-xs p-2 border rounded-xl bg-white h-16 resize-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-1">
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+                        >
+                          + Append Video Broadcast
+                        </button>
+                      </div>
+                    </form>
+
+                    {/* Videos items list with inline editing inputs */}
+                    <div className="space-y-3 font-sans">
+                      <p className="text-xs font-bold text-slate-400 font-mono">Total Live Videos: {videos.length}</p>
+                      
+                      {videos.map((vid) => (
+                        <div 
+                          key={vid.id} 
+                          className="p-4 bg-white rounded-2xl border border-slate-100/90 shadow-sm transition-all"
+                        >
+                          {editingVideoId === vid.id ? (
+                            <div className="space-y-3 text-left">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Title (EN)</label>
+                                  <input
+                                    type="text"
+                                    value={vid.title}
+                                    onChange={(e) => {
+                                      const updated = videos.map(v => v.id === vid.id ? { ...v, title: e.target.value } : v);
+                                      onUpdateVideos(updated);
+                                    }}
+                                    className="w-full text-xs p-1.5 border rounded-lg bg-slate-50 focus:bg-white font-semibold"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Title (HI)</label>
+                                  <input
+                                    type="text"
+                                    value={vid.titleHi || ''}
+                                    onChange={(e) => {
+                                      const updated = videos.map(v => v.id === vid.id ? { ...v, titleHi: e.target.value } : v);
+                                      onUpdateVideos(updated);
+                                    }}
+                                    className="w-full text-xs p-1.5 border rounded-lg bg-slate-50 focus:bg-white"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <div className="md:col-span-2">
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Video URL</label>
+                                  <input
+                                    type="text"
+                                    value={vid.videoUrl}
+                                    onChange={(e) => {
+                                      const updated = videos.map(v => v.id === vid.id ? { ...v, videoUrl: e.target.value } : v);
+                                      onUpdateVideos(updated);
+                                    }}
+                                    className="w-full text-xs p-1.5 border rounded-lg bg-slate-50 font-mono focus:bg-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Badge Label</label>
+                                  <input
+                                    type="text"
+                                    value={vid.badge || ''}
+                                    onChange={(e) => {
+                                      const updated = videos.map(v => v.id === vid.id ? { ...v, badge: e.target.value } : v);
+                                      onUpdateVideos(updated);
+                                    }}
+                                    className="w-full text-xs p-1.5 border rounded-lg bg-slate-50 focus:bg-white"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Description (EN)</label>
+                                  <textarea
+                                    value={vid.description}
+                                    onChange={(e) => {
+                                      const updated = videos.map(v => v.id === vid.id ? { ...v, description: e.target.value } : v);
+                                      onUpdateVideos(updated);
+                                    }}
+                                    className="w-full text-xs p-1.5 border rounded-lg bg-slate-50 focus:bg-white h-12"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-400 block pb-0.5">Description (HI)</label>
+                                  <textarea
+                                    value={vid.descriptionHi || ''}
+                                    onChange={(e) => {
+                                      const updated = videos.map(v => v.id === vid.id ? { ...v, descriptionHi: e.target.value } : v);
+                                      onUpdateVideos(updated);
+                                    }}
+                                    className="w-full text-xs p-1.5 border rounded-lg bg-slate-50 focus:bg-white h-12"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex justify-end pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => { setEditingVideoId(null); playSuccessChime(); }}
+                                  className="px-3 py-1 bg-indigo-600 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold cursor-pointer"
+                                >
+                                  Done ✓
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex gap-4 items-center justify-between font-sans">
+                              <div className="flex items-center gap-3">
+                                <span className="p-2 bg-red-50 text-red-600 rounded-lg">
+                                  <DynamicIcon name="Youtube" size={16} />
+                                </span>
+                                <div className="text-left font-sans">
+                                  <p className="text-xs font-extrabold text-slate-700 leading-tight">
+                                    {vid.title}
+                                  </p>
+                                  <p className="text-[10px] text-slate-500 mt-1 font-semibold truncate max-w-sm font-mono">
+                                    {vid.videoUrl}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <button
+                                  onClick={() => { setEditingVideoId(vid.id); playBubbleSound(); }}
+                                  className="p-1 px-2.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-100 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1"
+                                >
+                                  <DynamicIcon name="LockOpen" size={10} />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteVideo(vid.id)}
+                                  className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                                >
+                                  <DynamicIcon name="Trash2" size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
