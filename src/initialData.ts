@@ -413,6 +413,6 @@ export const INITIAL_HOMEPAGE_CONFIG: HomepageConfig = {
   card3Color: "teal",
   card3Emoji: "🤝",
   customAvatarImageUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=600",
-  usePhotoInsteadOfAvatar: false
+  usePhotoInsteadOfAvatar: true
 };
 

@@ -10,20 +10,73 @@ interface TimelineJourneyProps {
   milestones: TimelineMilestone[];
   onUpdateMilestones?: (updated: TimelineMilestone[]) => void;
   lang?: 'en' | 'hi';
+  initialActiveYear?: number;
 }
 
 export const TimelineJourney: React.FC<TimelineJourneyProps> = ({
   milestones,
   lang = 'hi',
+  initialActiveYear,
 }) => {
-  // Sort milestones chronologically starting from 1998 (Birth)
-  const sortedMilestones = [...milestones].sort((a, b) => a.year - b.year);
+  // Sort milestones chronologically (prefers custom sortOrder if present)
+  const sortedMilestones = [...milestones].sort((a, b) => {
+    if (a.sortOrder !== undefined && b.sortOrder !== undefined) {
+      return a.sortOrder - b.sortOrder;
+    }
+    return a.year - b.year;
+  });
   
   const [selectedMilestone, setSelectedMilestone] = useState<TimelineMilestone | null>(null);
   const [hoveredYear, setHoveredYear] = useState<number | null>(null);
-  const [activeYear, setActiveYear] = useState<number>(sortedMilestones[0]?.year || 1998);
+  const [activeYear, setActiveYear] = useState<number>(initialActiveYear || sortedMilestones[0]?.year || 1998);
 
   const t = TRANSLATIONS[lang];
+
+  // Scroll to year if specified in initialActiveYear prop
+  React.useEffect(() => {
+    if (initialActiveYear) {
+      setActiveYear(initialActiveYear);
+      const milestone = sortedMilestones.find(m => m.year === initialActiveYear);
+      if (milestone) {
+        setTimeout(() => {
+          const element = document.getElementById(`milestone-${milestone.id}`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 150);
+      }
+    }
+  }, [initialActiveYear, sortedMilestones]);
+
+  // Unique color gradients for Year Node highlights when clicked/active
+  const getActiveNodeColor = (idx: number) => {
+    const colors = [
+      'from-emerald-500 via-teal-500 to-emerald-400 text-white ring-8 ring-emerald-400/40 shadow-[0_0_35px_rgba(16,185,129,0.7)]',
+      'from-indigo-500 via-sky-500 to-indigo-400 text-white ring-8 ring-indigo-400/40 shadow-[0_0_35px_rgba(99,102,241,0.7)]',
+      'from-pink-500 via-rose-500 to-pink-400 text-white ring-8 ring-pink-400/40 shadow-[0_0_35px_rgba(244,63,94,0.7)]',
+      'from-amber-400 via-yellow-500 to-orange-400 text-white ring-8 ring-amber-400/40 shadow-[0_0_35px_rgba(245,158,11,0.7)]',
+      'from-purple-500 via-fuchsia-500 to-purple-400 text-white ring-8 ring-purple-400/40 shadow-[0_0_35px_rgba(168,85,247,0.7)]',
+      'from-sky-500 via-cyan-500 to-sky-450 text-white ring-8 ring-sky-400/40 shadow-[0_0_35px_rgba(14,165,233,0.7)]',
+      'from-rose-500 via-orange-500 to-rose-400 text-white ring-8 ring-rose-400/40 shadow-[0_0_35px_rgba(244,63,94,0.7)]',
+      'from-violet-550 via-violet-650 to-fuchsia-450 text-white ring-8 ring-violet-400/40 shadow-[0_0_35px_rgba(139,92,246,0.7)]',
+    ];
+    return `bg-gradient-to-tr ${colors[idx % colors.length]} scale-125`;
+  };
+
+  // Unique color gradients for Timeline Card background elements when clicked/active
+  const getActiveCardColor = (idx: number) => {
+    const cardGradients = [
+      "from-emerald-50 via-teal-50 to-emerald-100/90 dark:from-slate-900/95 dark:via-emerald-950/45 dark:to-teal-900/40 border-emerald-500 dark:border-emerald-400 shadow-[0_20px_50px_rgba(16,185,129,0.45)] ring-4 ring-emerald-400/35 scale-[1.04]",
+      "from-indigo-50 via-sky-50 to-indigo-100/90 dark:from-slate-900/95 dark:via-indigo-950/45 dark:to-sky-900/40 border-indigo-500 dark:border-indigo-400 shadow-[0_20px_50px_rgba(99,102,241,0.45)] ring-4 ring-indigo-400/35 scale-[1.04]",
+      "from-pink-50 via-rose-50 to-pink-100/90 dark:from-slate-900/95 dark:via-pink-950/45 dark:to-rose-900/40 border-pink-500 dark:border-pink-400 shadow-[0_20px_50px_rgba(244,63,94,0.45)] ring-4 ring-pink-400/35 scale-[1.04]",
+      "from-amber-50 via-yellow-50 to-amber-100/90 dark:from-slate-900/95 dark:via-amber-950/45 dark:to-orange-900/40 border-amber-500 dark:border-amber-400 shadow-[0_20px_50px_rgba(245,158,11,0.45)] ring-4 ring-amber-400/35 scale-[1.04]",
+      "from-purple-50 via-fuchsia-50 to-purple-100/90 dark:from-slate-900/95 dark:via-purple-950/45 dark:to-fuchsia-900/40 border-purple-500 dark:border-purple-400 shadow-[0_20px_50px_rgba(168,85,247,0.45)] ring-4 ring-purple-400/35 scale-[1.04]",
+      "from-sky-50 via-cyan-50 to-sky-100/90 dark:from-slate-900/95 dark:via-sky-950/45 dark:to-cyan-900/40 border-sky-500 dark:border-sky-400 shadow-[0_20px_50px_rgba(14,165,233,0.45)] ring-4 ring-sky-400/35 scale-[1.04]",
+      "from-rose-50 via-orange-50 to-rose-100/90 dark:from-slate-900/95 dark:via-rose-950/45 dark:to-orange-900/40 border-rose-500 dark:border-rose-400 shadow-[0_20px_50px_rgba(244,63,94,0.45)] ring-4 ring-rose-400/35 scale-[1.04]",
+      "from-violet-50 via-fuchsia-50 to-violet-100/90 dark:from-slate-900/95 dark:via-violet-950/45 dark:to-fuchsia-900/40 border-violet-500 dark:border-violet-400 shadow-[0_20px_50px_rgba(139,92,246,0.45)] ring-4 ring-violet-400/35 scale-[1.04]"
+    ];
+    return `bg-gradient-to-br ${cardGradients[idx % cardGradients.length]}`;
+  };
 
   // Colorful styling setup for card categories
   const getCardStyle = (category: string) => {
@@ -227,7 +280,7 @@ export const TimelineJourney: React.FC<TimelineJourneyProps> = ({
                       whileHover={{ scale: 1.25, rotate: 360 }}
                       className={`w-12 h-12 rounded-full flex items-center justify-center text-xs font-black border-2 shadow-lg cursor-pointer transition-all ${
                         activeYear === ms.year
-                          ? 'bg-gradient-to-tr from-indigo-600 via-pink-500 to-amber-500 text-white border-transparent ring-4 ring-indigo-200'
+                          ? `${getActiveNodeColor(idx)} text-white border-transparent ring-4`
                           : isHovered 
                           ? 'bg-gradient-to-tr from-pink-500 to-amber-400 text-white border-transparent'
                           : 'bg-white text-slate-800 border-teal-400 hover:border-indigo-500'
@@ -254,7 +307,11 @@ export const TimelineJourney: React.FC<TimelineJourneyProps> = ({
                         setActiveYear(ms.year);
                         playSuccessChime();
                       }}
-                      className={`p-6 rounded-[32px] border-2 shadow-md transition-all duration-300 cursor-pointer relative group text-left ${cardStyle.card}`}
+                      className={`p-6 rounded-[32px] border-2 shadow-md transition-all duration-300 cursor-pointer relative group text-left ${
+                        activeYear === ms.year
+                          ? getActiveCardColor(idx)
+                          : cardStyle.card
+                      }`}
                     >
                       {/* Interactive flight overlay icon */}
                       <div className="absolute top-4 right-4 text-slate-300 opacity-20 group-hover:opacity-100 group-hover:text-indigo-400 transition-all duration-300">

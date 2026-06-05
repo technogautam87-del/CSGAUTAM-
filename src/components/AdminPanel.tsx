@@ -175,6 +175,63 @@ export const SingleClickUpload: React.FC<SingleClickUploadProps> = ({
   );
 };
 
+export const ADMIN_THEMES = {
+  indigo: {
+    sidebarActive: 'bg-indigo-600 text-white shadow-md shadow-indigo-100',
+    textAccent: 'text-indigo-600',
+    borderAccent: 'border-indigo-600',
+    bgAccent: 'bg-indigo-50',
+    bgSecondary: 'bg-indigo-50/70',
+    btnPrimary: 'bg-indigo-600 hover:bg-indigo-700 text-white',
+    focusRing: 'focus:ring-indigo-100 focus:border-indigo-500',
+  },
+  teal: {
+    sidebarActive: 'bg-teal-600 text-white shadow-md shadow-teal-100',
+    textAccent: 'text-teal-600',
+    borderAccent: 'border-teal-600',
+    bgAccent: 'bg-teal-50',
+    bgSecondary: 'bg-teal-50/70',
+    btnPrimary: 'bg-teal-600 hover:bg-teal-700 text-white',
+    focusRing: 'focus:ring-teal-100 focus:border-teal-500',
+  },
+  rose: {
+    sidebarActive: 'bg-rose-600 text-white shadow-md shadow-rose-100',
+    textAccent: 'text-rose-600',
+    borderAccent: 'border-rose-600',
+    bgAccent: 'bg-rose-50',
+    bgSecondary: 'bg-rose-50/70',
+    btnPrimary: 'bg-rose-600 hover:bg-rose-700 text-white',
+    focusRing: 'focus:ring-rose-100 focus:border-rose-500',
+  },
+  emerald: {
+    sidebarActive: 'bg-emerald-600 text-white shadow-md shadow-emerald-100',
+    textAccent: 'text-emerald-600',
+    borderAccent: 'border-emerald-600',
+    bgAccent: 'bg-emerald-50',
+    bgSecondary: 'bg-emerald-50/70',
+    btnPrimary: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+    focusRing: 'focus:ring-emerald-100 focus:border-emerald-500',
+  },
+  amber: {
+    sidebarActive: 'bg-amber-600 text-white shadow-md shadow-amber-100',
+    textAccent: 'text-amber-600',
+    borderAccent: 'border-amber-600',
+    bgAccent: 'bg-amber-50',
+    bgSecondary: 'bg-amber-50/70',
+    btnPrimary: 'bg-amber-600 hover:bg-amber-700 text-white',
+    focusRing: 'focus:ring-amber-100 focus:border-amber-500',
+  },
+  violet: {
+    sidebarActive: 'bg-violet-600 text-white shadow-md shadow-violet-100',
+    textAccent: 'text-violet-600',
+    borderAccent: 'border-violet-600',
+    bgAccent: 'bg-violet-50',
+    bgSecondary: 'bg-violet-50/70',
+    btnPrimary: 'bg-violet-600 hover:bg-violet-700 text-white',
+    focusRing: 'focus:ring-violet-100 focus:border-violet-500',
+  },
+};
+
 interface AdminPanelProps {
   milestones: TimelineMilestone[];
   publications: Publication[];
@@ -197,6 +254,9 @@ interface AdminPanelProps {
   onClose: () => void;
   lang?: 'en' | 'hi';
   onForceRefresh?: () => Promise<boolean>;
+  
+  activeThemeColor?: 'indigo' | 'teal' | 'rose' | 'emerald' | 'amber' | 'violet';
+  onThemeColorChange?: (color: 'indigo' | 'teal' | 'rose' | 'emerald' | 'amber' | 'violet') => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -219,6 +279,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onClose,
   lang = 'hi',
   onForceRefresh,
+  activeThemeColor = 'indigo',
+  onThemeColorChange,
 }) => {
   // Screen lock state
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -231,6 +293,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Section selectors
   const [activeAdminTab, setActiveAdminTab] = useState<'homepage' | 'timeline' | 'achievements' | 'publications' | 'slides' | 'social' | 'news' | 'videos'>('homepage');
+
+  const currentTheme = ADMIN_THEMES[activeThemeColor] || ADMIN_THEMES.indigo;
 
   // Form states - Homepage & Pedagogy Cards Editing
   const [heroTitle, setHeroTitle] = useState(homepageConfig.heroTitle || '');
@@ -501,6 +565,116 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82); // High quality, compact size
           
           handleHomepageFieldChange('customAvatarImageUrl', compressedDataUrl);
+          playSuccessChime();
+        }
+      };
+      
+      if (event.target?.result) {
+        img.src = event.target.result as string;
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleNewSlideImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      playErrorAlert();
+      alert('Please select an image file! (कृपया केवल फोटो फाइल चुनें)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1000;
+        const MAX_HEIGHT = 1000;
+        
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setNewSlideUrl(compressedDataUrl);
+          playSuccessChime();
+        }
+      };
+      
+      if (event.target?.result) {
+        img.src = event.target.result as string;
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditingSlideImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      playErrorAlert();
+      alert('Please select an image file! (कृपया केवल फोटो फाइल चुनें)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1000;
+        const MAX_HEIGHT = 1000;
+        
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setEditingSlideUrl(compressedDataUrl);
           playSuccessChime();
         }
       };
@@ -1071,7 +1245,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     }}
                     className={`w-full px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
                       activeAdminTab === item.key
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100'
+                        ? currentTheme.sidebarActive
                         : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
@@ -1080,7 +1254,47 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </button>
                 ))}
 
-                <div className="pt-6 border-t border-slate-200 mt-6 px-2 text-center">
+                {/* Brand Color Theme Customizer */}
+                <div className="pt-4 border-t border-slate-200 mt-4 px-1.5 text-left">
+                  <span className="text-[9px] font-extrabold text-slate-400 font-mono uppercase block mb-1.5 tracking-wider">
+                    {lang === 'hi' ? 'टैब का रंग बदलें' : 'Change Tab Color'}
+                  </span>
+                  <div className="flex flex-wrap gap-2 justify-start items-center">
+                    {(['indigo', 'teal', 'rose', 'emerald', 'amber', 'violet'] as const).map((color) => {
+                      const colorClassMap = {
+                        indigo: 'bg-indigo-600 ring-indigo-200',
+                        teal: 'bg-teal-600 ring-teal-200',
+                        rose: 'bg-rose-600 ring-rose-200',
+                        emerald: 'bg-emerald-600 ring-emerald-200',
+                        amber: 'bg-amber-600 ring-amber-200',
+                        violet: 'bg-violet-600 ring-violet-200',
+                      };
+                      const isActive = activeThemeColor === color;
+                      return (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => {
+                            if (onThemeColorChange) {
+                              onThemeColorChange(color);
+                            }
+                            playBubbleSound();
+                          }}
+                          className={`w-6 h-6 rounded-full cursor-pointer transition-all duration-200 hover:scale-110 flex items-center justify-center ${colorClassMap[color]} ${
+                            isActive ? 'ring-4 ring-offset-2 scale-105' : 'opacity-85'
+                          }`}
+                          title={`Switch to ${color}`}
+                        >
+                          {isActive && (
+                            <span className="text-[10px] text-white">✓</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-200 mt-4 px-2 text-center">
                   <span className="text-[10px] font-bold text-slate-400 font-mono uppercase block mb-1">
                     System Cache
                   </span>

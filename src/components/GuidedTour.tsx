@@ -54,16 +54,9 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({
 
   // Show welcome pop up on initial reload
   useEffect(() => {
-    const hasSeenWelcome = sessionStorage.getItem('has_seen_welcome_gautam');
-    if (!hasSeenWelcome) {
-      // Small graceful delay to let screen compile
-      const timer = setTimeout(() => {
-        setShowWelcomeModal(true);
-        playSuccessChime();
-        speakWelcomeGreeting();
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
+    // Disable automatic pop up to keep the intro landing page completely raw and clean
+    sessionStorage.setItem('has_seen_welcome_gautam', 'true');
+    setShowWelcomeModal(false);
   }, []);
 
   // Sync up voice/cancel speech when tour is aborted or state changes
@@ -288,9 +281,9 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({
 
   return (
     <>
-      {/* 1. INITIAL IMMERSIVE WELCOME MODAL POPUP */}
+      {/* 1. INITIAL IMMERSIVE WELCOME MODAL POPUP - Disabled as requested */}
       <AnimatePresence>
-        {showWelcomeModal && (
+        {false && (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4">
             
             <motion.div

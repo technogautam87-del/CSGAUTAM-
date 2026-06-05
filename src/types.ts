@@ -1,6 +1,7 @@
 export interface TimelineMilestone {
   id: string;
   year: number;
+  sortOrder?: number;
   title: string;
   titleHi?: string;
   subtitle?: string;
