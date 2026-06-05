@@ -4,6 +4,8 @@ import * as Icons from 'lucide-react';
 import { playBubbleSound, playSuccessChime } from '../audio';
 import { TRANSLATIONS } from '../translations';
 
+import { CustomPage } from '../types';
+
 // Accent theme colors for the dock's focus state
 const THEME_ACCENTS = {
   indigo: {
@@ -39,8 +41,8 @@ const THEME_ACCENTS = {
 };
 
 interface DockMenuProps {
-  activeTab: 'intro' | 'timeline' | 'publications' | 'news' | 'gallery' | 'achievements';
-  setActiveTab: (tab: 'intro' | 'timeline' | 'publications' | 'news' | 'gallery' | 'achievements') => void;
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
   lang?: 'en' | 'hi';
   milestonesCount: number;
   publicationsCount: number;
@@ -50,6 +52,7 @@ interface DockMenuProps {
   onAdminToggle: () => void;
   isAdminOpen: boolean;
   activeThemeColor?: 'indigo' | 'teal' | 'rose' | 'emerald' | 'amber' | 'violet';
+  customPages?: CustomPage[];
 }
 
 export const DockMenu: React.FC<DockMenuProps> = ({
@@ -64,6 +67,7 @@ export const DockMenu: React.FC<DockMenuProps> = ({
   onAdminToggle,
   isAdminOpen,
   activeThemeColor = 'indigo',
+  customPages = [],
 }) => {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const t = TRANSLATIONS[lang];
@@ -80,46 +84,64 @@ export const DockMenu: React.FC<DockMenuProps> = ({
     admin: { hi: 'एडमिन कंट्रोल', en: 'Admin Panel' }
   };
 
+  const getLabel = (itemId: string) => {
+    if (dockLabels[itemId]) {
+      return lang === 'hi' ? dockLabels[itemId].hi : dockLabels[itemId].en;
+    }
+    const pg = customPages.find(p => p.id === itemId);
+    if (pg) {
+      return lang === 'hi' ? pg.titleHi || pg.title : pg.title;
+    }
+    return itemId;
+  };
+
   const menuItems = [
     {
-      id: 'intro' as const,
-      iconName: 'Home' as const,
+      id: 'intro',
+      iconName: 'Home',
       badge: null,
       color: 'text-sky-600'
     },
     {
-      id: 'timeline' as const,
-      iconName: 'Compass' as const,
+      id: 'timeline',
+      iconName: 'Compass',
       badge: milestonesCount,
       color: 'text-teal-600'
     },
     {
-      id: 'gallery' as const,
-      iconName: 'Image' as const,
+      id: 'gallery',
+      iconName: 'Image',
       badge: galleryCount,
       color: 'text-rose-600'
     },
     {
-      id: 'publications' as const,
-      iconName: 'BookOpen' as const,
+      id: 'publications',
+      iconName: 'BookOpen',
       badge: publicationsCount,
       color: 'text-amber-600'
     },
     {
-      id: 'news' as const,
-      iconName: 'Newspaper' as const,
+      id: 'news',
+      iconName: 'Newspaper',
       badge: newsCount,
       color: 'text-indigo-600'
     },
     {
-      id: 'achievements' as const,
-      iconName: 'Award' as const,
+      id: 'achievements',
+      iconName: 'Award',
       badge: achievementsCount,
       color: 'text-emerald-600'
     },
+    // Inject active custom pages
+    ...customPages.filter(p => p.isActive).map(p => ({
+      id: p.id,
+      iconName: p.iconName || 'Sparkles',
+      badge: null,
+      color: 'text-violet-600'
+    })),
     {
-      id: 'admin' as const,
-      iconName: 'Settings2' as const,
+      id: 'admin',
+      iconName: 'Settings2',
       badge: null,
       color: 'text-slate-650',
       isSystemAction: true
@@ -175,7 +197,7 @@ export const DockMenu: React.FC<DockMenuProps> = ({
                     transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     className="absolute z-50 px-3.5 py-1.5 bg-slate-900/95 dark:bg-slate-950/95 text-white text-[10px] md:text-xs font-black uppercase tracking-wider rounded-xl shadow-md border border-white/10 whitespace-nowrap pointer-events-none"
                   >
-                    <span>{lang === 'hi' ? dockLabels[item.id].hi : dockLabels[item.id].en}</span>
+                    <span>{getLabel(item.id)}</span>
                     {/* Tooltip tiny pointer arrow */}
                     <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900/95" />
                   </motion.div>
@@ -188,10 +210,10 @@ export const DockMenu: React.FC<DockMenuProps> = ({
                 animate={{ scale, y }}
                 transition={{ type: 'spring', stiffness: 350, damping: 24 }}
                 onClick={() => {
-                  if (item.isSystemAction) {
+                  if (item.id === 'admin') {
                     onAdminToggle();
                   } else {
-                    setActiveTab(item.id as any);
+                    setActiveTab(item.id);
                   }
                   playSuccessChime();
                 }}

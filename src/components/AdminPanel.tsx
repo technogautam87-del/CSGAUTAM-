@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { TimelineMilestone, Publication, NewsCutting, LiveVideo, Achievement, SliderPhoto, SocialLink, HomepageConfig } from '../types';
+import { TimelineMilestone, Publication, NewsCutting, LiveVideo, Achievement, SliderPhoto, SocialLink, HomepageConfig, CustomPage } from '../types';
 import { DynamicIcon, AVAILABLE_ACCENT_ICONS } from './DynamicIcon';
 import { playBubbleSound, playSuccessChime, playKeyTap, playErrorAlert } from '../audio';
 
@@ -241,6 +241,7 @@ interface AdminPanelProps {
   slides: SliderPhoto[];
   socialLinks: SocialLink[];
   homepageConfig: HomepageConfig;
+  customPages?: CustomPage[];
 
   onUpdateMilestones: (updated: TimelineMilestone[]) => void;
   onUpdatePublications: (updated: Publication[]) => void;
@@ -250,6 +251,7 @@ interface AdminPanelProps {
   onUpdateSlides: (updated: SliderPhoto[]) => void;
   onUpdateSocialLinks: (updated: SocialLink[]) => void;
   onUpdateHomepageConfig: (updated: HomepageConfig) => void;
+  onUpdateCustomPages?: (updated: CustomPage[]) => void;
 
   onClose: () => void;
   lang?: 'en' | 'hi';
@@ -268,6 +270,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   slides,
   socialLinks = [],
   homepageConfig,
+  customPages = [],
   onUpdateMilestones,
   onUpdatePublications,
   onUpdateNewsCuttings,
@@ -276,6 +279,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onUpdateSlides,
   onUpdateSocialLinks,
   onUpdateHomepageConfig,
+  onUpdateCustomPages,
   onClose,
   lang = 'hi',
   onForceRefresh,
@@ -292,7 +296,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [refreshSuccess, setRefreshSuccess] = useState<boolean | null>(null);
 
   // Section selectors
-  const [activeAdminTab, setActiveAdminTab] = useState<'homepage' | 'timeline' | 'achievements' | 'publications' | 'slides' | 'social' | 'news' | 'videos'>('homepage');
+  const [activeAdminTab, setActiveAdminTab] = useState<'homepage' | 'timeline' | 'achievements' | 'publications' | 'slides' | 'social' | 'news' | 'videos' | 'customPages'>('homepage');
+
+  // Custom pages form states
+  const [editingPageId, setEditingPageId] = useState<string>('');
+  const [pageUrlSlug, setPageUrlSlug] = useState<string>('');
+  const [pageTitle, setPageTitle] = useState<string>('');
+  const [pageTitleHi, setPageTitleHi] = useState<string>('');
+  const [pageIcon, setPageIcon] = useState<string>('Sparkles');
+  const [pageContent, setPageContent] = useState<string>('');
+  const [pageContentHi, setPageContentHi] = useState<string>('');
+  const [pageIsActive, setPageIsActive] = useState<boolean>(true);
 
   const currentTheme = ADMIN_THEMES[activeThemeColor] || ADMIN_THEMES.indigo;
 
@@ -1023,7 +1037,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 admin-panel-container">
+      <style>{`
+        .admin-panel-container input,
+        .admin-panel-container textarea,
+        .admin-panel-container select {
+          color: #0f172a !important;
+          background-color: #ffffff !important;
+        }
+        .admin-panel-container input::placeholder,
+        .admin-panel-container textarea::placeholder {
+          color: #64748b !important;
+        }
+      `}</style>
       <AnimatePresence mode="wait">
         
         {/* VIEW A: SECURE LOCK KEYPAD SCREEN */}
@@ -1235,7 +1261,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   { key: 'slides', icon: 'Image', label: 'Photo Gallery (फोटो गैलरी)' },
                   { key: 'news', icon: 'FileText', label: 'News / Media Cuttings' },
                   { key: 'videos', icon: 'Tv', label: 'Video Broadcast' },
-                  { key: 'social', icon: 'Globe', label: 'Social Networks' }
+                  { key: 'social', icon: 'Globe', label: 'Social Networks' },
+                  { key: 'customPages', icon: 'PlusSquare', label: 'Manage Pages (कस्टम पेज)' }
                 ].map((item) => (
                   <button
                     key={item.key}
@@ -3396,6 +3423,290 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           )}
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 6. CUSTOM DYNAMIC PAGES ENGINE */}
+                {activeAdminTab === 'customPages' && (
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4 border-b pb-2 flex justify-between items-center">
+                      <span>Dynamic Custom Pages Engine</span>
+                      <span className="text-xs text-slate-400 font-normal">({customPages.length} Pages Created)</span>
+                    </h4>
+
+                    {/* Left: Creator/Editor Desk Form, Right: Pages Directory */}
+                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                      
+                      {/* Section A: Form Panel (8 cols) */}
+                      <div className="xl:col-span-8 bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-4">
+                        <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                          <span className="text-xs font-black text-slate-705 uppercase tracking-wider flex items-center gap-1.5">
+                            <DynamicIcon name="Layout" size={14} className="text-teal-600" />
+                            {editingPageId ? 'Edit Page / पेज विवरण बदलें' : 'Create New Custom Page / नया पेज बनाएं'}
+                          </span>
+                          {editingPageId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingPageId('');
+                                setPageUrlSlug('');
+                                setPageTitle('');
+                                setPageTitleHi('');
+                                setPageIcon('Sparkles');
+                                setPageContent('');
+                                setPageContentHi('');
+                                setPageIsActive(true);
+                                playBubbleSound();
+                              }}
+                              className="text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer"
+                            >
+                              + New Page (नया पेज)
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase">Page URL Slug (Unique ID, e.g. "isl-glossary")</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. specialized-notes"
+                              disabled={!!editingPageId}
+                              value={pageUrlSlug}
+                              onChange={(e) => setPageUrlSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''))}
+                              className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 font-mono text-indigo-650 font-bold"
+                            />
+                            <p className="text-[9px] text-slate-400 mt-1">Unique alphanumeric identifier used as the route path link slug.</p>
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase">Select Icon</label>
+                            <select
+                              value={pageIcon}
+                              onChange={(e) => { setPageIcon(e.target.value); playBubbleSound(); }}
+                              className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 font-bold text-slate-750"
+                            >
+                              {['Sparkles', 'BookOpen', 'GraduationCap', 'Award', 'Globe', 'Compass', 'Star', 'Smile', 'Lightbulb', 'Briefcase', 'Heart', 'Trophy', 'Gamepad2', 'Languages'].map(ic => (
+                                <option key={ic} value={ic}>{ic}</option>
+                              ))}
+                            </select>
+                            <p className="text-[9px] text-slate-400 mt-1">Icon displayed in the dock menu launcher.</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase">Page Title (English) / शीर्षक (अंग्रेजी)</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. My Custom Notes"
+                              value={pageTitle}
+                              onChange={(e) => setPageTitle(e.target.value)}
+                              className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 font-bold text-black"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase">Page Title (Hindi) / शीर्षक (हिंदी)</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="जैसे: मेरे महत्वपूर्ण नोट्स"
+                              value={pageTitleHi}
+                              onChange={(e) => setPageTitleHi(e.target.value)}
+                              className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 font-bold text-black"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase">Page Content (English / Markdown Supported)</label>
+                          <textarea
+                            rows={6}
+                            required
+                            placeholder="Type English content here. You can use markdown titles, bullet points, etc. to format the custom view perfectly."
+                            value={pageContent}
+                            onChange={(e) => setPageContent(e.target.value)}
+                            className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 font-sans leading-relaxed text-black font-medium"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase">Page Content (Hindi / Markdown / हिंदी भाषा)</label>
+                          <textarea
+                            rows={6}
+                            required
+                            placeholder="यहाँ हिंदी में मुख्य सामग्री लिखें..."
+                            value={pageContentHi}
+                            onChange={(e) => setPageContentHi(e.target.value)}
+                            className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1 font-sans leading-relaxed text-black font-medium"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2">
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={pageIsActive}
+                              onChange={(e) => { setPageIsActive(e.target.checked); playBubbleSound(); }}
+                              className="rounded border-slate-300 bg-white"
+                            />
+                            <span className="text-xs font-bold text-slate-700">Display this page dynamically in the site navigation bar / dock menu</span>
+                          </label>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!pageUrlSlug || !pageTitle || !pageTitleHi || !pageContent || !pageContentHi) {
+                                playErrorAlert();
+                                alert('Please populate all required fields / सभी आवश्यक फ़ील्ड भरें');
+                                return;
+                              }
+
+                              // Alphanumeric check
+                              const cleanSlug = pageUrlSlug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '');
+                              if (!cleanSlug) {
+                                playErrorAlert();
+                                alert('Invalid URL slug');
+                                return;
+                              }
+
+                              const newPage: CustomPage = {
+                                id: cleanSlug,
+                                title: pageTitle.trim(),
+                                titleHi: pageTitleHi.trim(),
+                                iconName: pageIcon,
+                                content: pageContent.trim(),
+                                contentHi: pageContentHi.trim(),
+                                isActive: pageIsActive,
+                              };
+
+                              let updatedList: CustomPage[] = [];
+
+                              if (editingPageId) {
+                                // update
+                                updatedList = (customPages || []).map(p => p.id === editingPageId ? newPage : p);
+                                playSuccessChime();
+                              } else {
+                                // insert check uniqueness
+                                if ((customPages || []).some(p => p.id === cleanSlug)) {
+                                  playErrorAlert();
+                                  alert('A page with that Slug ID already exists! Please use a unique URL slug.');
+                                  return;
+                                }
+                                updatedList = [...(customPages || []), newPage];
+                                playSuccessChime();
+                              }
+
+                              if (onUpdateCustomPages) {
+                                onUpdateCustomPages(updatedList);
+                              }
+
+                              // Reset
+                              setEditingPageId('');
+                              setPageUrlSlug('');
+                              setPageTitle('');
+                              setPageTitleHi('');
+                              setPageIcon('Sparkles');
+                              setPageContent('');
+                              setPageContentHi('');
+                              setPageIsActive(true);
+                            }}
+                            className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-750 text-white rounded-xl text-xs font-black shadow-md md:w-auto w-full transition-all cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            <DynamicIcon name="Save" size={14} />
+                            <span>{editingPageId ? 'Update & Live Page' : 'Publish New Page (पेज प्रकाशित करें)'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Section B: Directory List Panel (4 cols) */}
+                      <div className="xl:col-span-4 space-y-3.5">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Created Pages Directory</span>
+                        {(!customPages || customPages.length === 0) ? (
+                          <div className="bg-slate-50 border border-slate-100 p-8 rounded-2xl text-center text-slate-400 text-xs shadow-inner">
+                            <DynamicIcon name="File" size={24} className="mx-auto mb-2 text-slate-350 animate-pulse" />
+                            <span>No dynamic pages built yet. Build your first custom project page using the creator deck!</span>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                            {customPages.map((page) => (
+                              <div
+                                key={page.id}
+                                className={`p-3.5 rounded-2xl border transition-all ${
+                                  editingPageId === page.id 
+                                    ? 'bg-indigo-50 border-indigo-250 shadow-sm' 
+                                    : 'bg-white hover:bg-slate-50 border-slate-150'
+                                } flex items-center justify-between gap-3`}
+                              >
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                  <div className="p-2 bg-slate-100 dark:bg-slate-850 rounded-xl text-slate-650 shrink-0">
+                                    <DynamicIcon name={page.iconName || 'File'} size={14} />
+                                  </div>
+                                  <div className="overflow-hidden">
+                                    <h5 className="font-extrabold text-xs text-slate-800 truncate">
+                                      {lang === 'hi' ? page.titleHi || page.title : page.title}
+                                    </h5>
+                                    <span className="text-[9px] font-mono text-indigo-600 block truncate max-w-xs mt-0.5 font-bold">
+                                      /{page.id}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 mt-1">
+                                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${page.isActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                                      <span className="text-[8px] font-bold text-slate-450 uppercase tracking-widest leading-none">
+                                        {page.isActive ? 'Public & Active' : 'Hidden'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    onClick={() => {
+                                      setEditingPageId(page.id);
+                                      setPageUrlSlug(page.id);
+                                      setPageTitle(page.title);
+                                      setPageTitleHi(page.titleHi || '');
+                                      setPageIcon(page.iconName || 'Sparkles');
+                                      setPageContent(page.content);
+                                      setPageContentHi(page.contentHi || '');
+                                      setPageIsActive(page.isActive);
+                                      playBubbleSound();
+                                    }}
+                                    className="p-1 px-2 text-indigo-650 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-[9px] font-extrabold transition-all cursor-pointer"
+                                  >
+                                    Load
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (confirm(`Are you sure you want to delete this page: /${page.id}? This cannot be undone.`)) {
+                                        const updatedList = customPages.filter(p => p.id !== page.id);
+                                        if (onUpdateCustomPages) onUpdateCustomPages(updatedList);
+                                        if (editingPageId === page.id) {
+                                          setEditingPageId('');
+                                          setPageUrlSlug('');
+                                          setPageTitle('');
+                                          setPageTitleHi('');
+                                          setPageIcon('Sparkles');
+                                          setPageContent('');
+                                          setPageContentHi('');
+                                        }
+                                        playSuccessChime();
+                                      } else {
+                                        playErrorAlert();
+                                      }
+                                    }}
+                                    className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                                  >
+                                    <DynamicIcon name="Trash2" size={12} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
                     </div>
                   </div>
                 )}

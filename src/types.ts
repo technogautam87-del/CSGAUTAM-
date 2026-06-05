@@ -123,3 +123,14 @@ export interface HomepageConfig {
   usePhotoInsteadOfAvatar?: boolean;
 }
 
+export interface CustomPage {
+  id: string;
+  title: string;
+  titleHi: string;
+  iconName: string;
+  content: string;
+  contentHi: string;
+  isActive: boolean;
+}
+
+

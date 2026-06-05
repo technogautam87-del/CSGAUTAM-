@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from './firebase';
 import { doc, setDoc, onSnapshot, collection, getDocsFromServer } from 'firebase/firestore';
-import { TimelineMilestone, Publication, NewsCutting, LiveVideo, Achievement, SliderPhoto, SocialLink, HomepageConfig } from './types';
+import { TimelineMilestone, Publication, NewsCutting, LiveVideo, Achievement, SliderPhoto, SocialLink, HomepageConfig, CustomPage } from './types';
 import { InteractiveAvatar } from './components/InteractiveAvatar';
 import {
   INITIAL_TIMELINE_MILESTONES,
@@ -21,6 +21,7 @@ import { NewsAndVideos } from './components/NewsAndVideos';
 import { AchievementsTab } from './components/AchievementsTab';
 import { PhotoGalleryTab } from './components/PhotoGalleryTab';
 import { AdminPanel } from './components/AdminPanel';
+import { DynamicPageRenderer } from './components/DynamicPageRenderer';
 import { Footer } from './components/Footer';
 import { DynamicIcon } from './components/DynamicIcon';
 import { DockMenu } from './components/DockMenu';
@@ -84,6 +85,7 @@ export default function App() {
   const [slides, setSlides] = useState<SliderPhoto[]>([]);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [homepageConfig, setHomepageConfig] = useState<HomepageConfig>(INITIAL_HOMEPAGE_CONFIG);
+  const [customPages, setCustomPages] = useState<CustomPage[]>([]);
   
   const [appreciationCount, setAppreciationCount] = useState<number>(128);
   const [activeTab, setActiveTab] = useState<'intro' | 'timeline' | 'publications' | 'news' | 'achievements' | 'gallery'>('intro');
@@ -178,6 +180,9 @@ export default function App() {
     }
     setHomepageConfig(parsedHomepage);
 
+    const cCustomPages = localStorage.getItem('db_custom_pages');
+    setCustomPages(cCustomPages ? JSON.parse(cCustomPages) : []);
+
     // Hearts/Appreciations
     const cachedAppr = localStorage.getItem('db_appreciation');
     if (cachedAppr) {
@@ -219,6 +224,9 @@ export default function App() {
         } else if (key === 'homepageConfig' && typeof value === 'object') {
           setHomepageConfig(value);
           localStorage.setItem('db_homepage_config', JSON.stringify(value));
+        } else if (key === 'customPages' && Array.isArray(value)) {
+          setCustomPages(value);
+          localStorage.setItem('db_custom_pages', JSON.stringify(value));
         }
       });
     }, (error) => {
@@ -250,6 +258,12 @@ export default function App() {
   };
 
   // Update helper triggers with server-side live sync
+  const handleUpdateCustomPages = (updated: CustomPage[]) => {
+    setCustomPages(updated);
+    localStorage.setItem('db_custom_pages', JSON.stringify(updated));
+    saveKeyToServer('customPages', updated);
+  };
+
   const handleUpdateMilestones = (updated: TimelineMilestone[]) => {
     setMilestones(updated);
     localStorage.setItem('db_milestones', JSON.stringify(updated));
@@ -367,6 +381,9 @@ export default function App() {
         } else if (key === 'homepageConfig' && typeof value === 'object') {
           setHomepageConfig(value);
           localStorage.setItem('db_homepage_config', JSON.stringify(value));
+        } else if (key === 'customPages' && Array.isArray(value)) {
+          setCustomPages(value);
+          localStorage.setItem('db_custom_pages', JSON.stringify(value));
         }
       });
       return true;
@@ -1065,6 +1082,20 @@ export default function App() {
                 lang={lang}
               />
             )}
+
+            {/* Dynamic customPages rendering container */}
+            {customPages.filter(p => p.isActive).map((page) => {
+              if (activeTab === page.id) {
+                return (
+                  <DynamicPageRenderer
+                    key={page.id}
+                    page={page}
+                    lang={lang}
+                  />
+                );
+              }
+              return null;
+            })}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -1081,6 +1112,8 @@ export default function App() {
             slides={slides}
             socialLinks={socialLinks}
             homepageConfig={homepageConfig}
+            customPages={customPages}
+            onUpdateCustomPages={handleUpdateCustomPages}
             activeThemeColor={themeTabColor}
             onThemeColorChange={(color) => {
               setThemeTabColor(color);
@@ -1117,6 +1150,7 @@ export default function App() {
         onAdminToggle={() => setShowAdminPanel(!showAdminPanel)}
         isAdminOpen={showAdminPanel}
         activeThemeColor={themeTabColor}
+        customPages={customPages}
       />
 
       {/* 3.1 GUIDED TOUR AND WELCOME MODAL CONTROLLER OVERLAYS */}
