@@ -1193,7 +1193,9 @@ export default function App() {
             socialLinks={socialLinks}
             homepageConfig={homepageConfig}
             customPages={customPages}
+            poems={rahbarPoems}
             onUpdateCustomPages={handleUpdateCustomPages}
+            onUpdatePoems={handleUpdatePoems}
             activeThemeColor={themeTabColor}
             onThemeColorChange={(color) => {
               setThemeTabColor(color);

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { TimelineMilestone, Publication, NewsCutting, LiveVideo, Achievement, SliderPhoto, SocialLink, HomepageConfig, CustomPage } from '../types';
 import { DynamicIcon, AVAILABLE_ACCENT_ICONS } from './DynamicIcon';
 import { playBubbleSound, playSuccessChime, playKeyTap, playErrorAlert } from '../audio';
+import { PoemItem } from './PoetryRahbarTab';
 
 /**
  * Safely transforms a Google Drive sharing/viewer link into a direct public fast-rendering 
@@ -242,6 +243,7 @@ interface AdminPanelProps {
   socialLinks: SocialLink[];
   homepageConfig: HomepageConfig;
   customPages?: CustomPage[];
+  poems?: PoemItem[];
 
   onUpdateMilestones: (updated: TimelineMilestone[]) => void;
   onUpdatePublications: (updated: Publication[]) => void;
@@ -252,6 +254,7 @@ interface AdminPanelProps {
   onUpdateSocialLinks: (updated: SocialLink[]) => void;
   onUpdateHomepageConfig: (updated: HomepageConfig) => void;
   onUpdateCustomPages?: (updated: CustomPage[]) => void;
+  onUpdatePoems?: (updated: PoemItem[]) => void;
 
   onClose: () => void;
   lang?: 'en' | 'hi';
@@ -271,6 +274,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   socialLinks = [],
   homepageConfig,
   customPages = [],
+  poems = [],
   onUpdateMilestones,
   onUpdatePublications,
   onUpdateNewsCuttings,
@@ -280,6 +284,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onUpdateSocialLinks,
   onUpdateHomepageConfig,
   onUpdateCustomPages,
+  onUpdatePoems,
   onClose,
   lang = 'hi',
   onForceRefresh,
@@ -296,7 +301,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [refreshSuccess, setRefreshSuccess] = useState<boolean | null>(null);
 
   // Section selectors
-  const [activeAdminTab, setActiveAdminTab] = useState<'homepage' | 'timeline' | 'achievements' | 'publications' | 'slides' | 'social' | 'news' | 'videos' | 'customPages'>('homepage');
+  const [activeAdminTab, setActiveAdminTab] = useState<'homepage' | 'timeline' | 'achievements' | 'publications' | 'slides' | 'social' | 'news' | 'videos' | 'customPages' | 'rahbar_poetry'>('homepage');
 
   // Custom pages form states
   const [editingPageId, setEditingPageId] = useState<string>('');
@@ -307,6 +312,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [pageContent, setPageContent] = useState<string>('');
   const [pageContentHi, setPageContentHi] = useState<string>('');
   const [pageIsActive, setPageIsActive] = useState<boolean>(true);
+
+  // Form states - Poetry Customizer
+  const [poetryEditId, setPoetryEditId] = useState<string | null>(null);
+  const [formTitleHi, setFormTitleHi] = useState('');
+  const [formTitle, setFormTitle] = useState('');
+  const [formCategory, setFormCategory] = useState<'Ghazal' | 'Nazm' | 'Rubai' | 'Kavita' | 'Sher' | 'Other'>('Ghazal');
+  const [formVerses, setFormVerses] = useState('');
+  const [formDate, setFormDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const currentTheme = ADMIN_THEMES[activeThemeColor] || ADMIN_THEMES.indigo;
 
@@ -1262,7 +1275,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   { key: 'news', icon: 'FileText', label: 'News / Media Cuttings' },
                   { key: 'videos', icon: 'Tv', label: 'Video Broadcast' },
                   { key: 'social', icon: 'Globe', label: 'Social Networks' },
-                  { key: 'customPages', icon: 'PlusSquare', label: 'Manage Pages (कस्टम पेज)' }
+                  { key: 'customPages', icon: 'PlusSquare', label: 'Manage Pages (कस्टम पेज)' },
+                  { key: 'rahbar_poetry', icon: 'Sparkles', label: 'रहबर काव्य (Poetry Config)' }
                 ].map((item) => (
                   <button
                     key={item.key}
@@ -3713,6 +3727,313 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             ))}
                           </div>
                         )}
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+
+                {/* 7. RAHBAR POETRY CUSTOMIZATION VIEW */}
+                {activeAdminTab === 'rahbar_poetry' && (
+                  <div className="space-y-6">
+                    <h4 className="text-sm font-black text-slate-850 uppercase tracking-wider mb-4 border-b border-slate-100 pb-3 flex justify-between items-center text-left col-span-full">
+                      <span className="flex items-center gap-2 text-rose-600">
+                        <DynamicIcon name="Sparkles" size={16} />
+                        रहबर काव्य-साधना कस्टमाइज़ेशन (Poetry Page Customizer)
+                      </span>
+                      <span className="text-xs bg-rose-50 border border-rose-100 text-rose-600 px-2.5 py-0.5 rounded-full font-bold font-mono">
+                        {poems.length} काव्य रचनाएँ (Poems)
+                      </span>
+                    </h4>
+
+                    {/* Main customize fields card: lets admin change Rahbar Introduction text online in real-time */}
+                    <div className="bg-gradient-to-br from-rose-500/5 to-amber-500/5 border border-rose-200/50 p-5 rounded-2xl space-y-4">
+                      <div className="flex items-center gap-2 pb-1 border-b border-rose-100/40 text-left">
+                        <DynamicIcon name="Layout" size={15} className="text-rose-500" />
+                        <span className="text-xs font-black text-slate-800 uppercase tracking-wider font-sans">
+                          1. रहबर प्रस्तावना संदेश (Introduction Content Customize)
+                        </span>
+                      </div>
+                      
+                      {customPages.filter(p => p.id === 'rahbar').map((rahbarPage) => (
+                        <div key={rahbarPage.id} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1.5 text-left font-sans">
+                            <label className="block text-[10px] font-black text-slate-500 uppercase">
+                              प्रस्तावना हिन्दी (Introductory Text Hindi)
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={rahbarPage.contentHi || ''}
+                              onChange={(e) => {
+                                const updated = customPages.map(p => p.id === 'rahbar' ? { ...p, contentHi: e.target.value } : p);
+                                if (onUpdateCustomPages) onUpdateCustomPages(updated);
+                              }}
+                              className="w-full text-xs p-3 border border-slate-200 rounded-xl bg-white font-medium focus:border-rose-450 focus:ring-1 focus:ring-rose-200 focus:outline-none transition-all animate-none"
+                              placeholder="# रहबर काव्य संग्रह\nयहाँ मेरी कविताएँ और ग़ज़लें सहेजी हुई हैं।"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5 text-left font-sans">
+                            <label className="block text-[10px] font-black text-slate-500 uppercase">
+                              Introductory Text English
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={rahbarPage.content || ''}
+                              onChange={(e) => {
+                                const updated = customPages.map(p => p.id === 'rahbar' ? { ...p, content: e.target.value } : p);
+                                if (onUpdateCustomPages) onUpdateCustomPages(updated);
+                              }}
+                              className="w-full text-xs p-3 border border-slate-200 rounded-xl bg-white font-medium focus:border-rose-450 focus:ring-1 focus:ring-rose-200 focus:outline-none transition-all animate-none"
+                              placeholder="# Rahbar Poetry Collection\nWelcome to my poetry sanctuary."
+                            />
+                          </div>
+                        </div>
+                      ))}
+
+                      <div className="flex items-center gap-1.5 bg-rose-500/5 px-3 py-1.5 rounded-lg border border-rose-200/30 text-left">
+                        <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
+                        <span className="text-[10px] text-rose-700 font-extrabold font-sans">
+                          ⚡ ऊपर का टेक्स्ट बदलते ही लाइव वेबसाइट तुरंत अपडेट हो जाएगी! (Live updates instantly)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Section 2: Manage Poems Directly */}
+                    <div className="bg-white border border-slate-150 p-5 rounded-2xl space-y-4">
+                      
+                      <div className="flex items-center justify-between pb-2 border-b border-rose-100 text-left font-sans">
+                        <div className="flex items-center gap-2 font-sans">
+                          <DynamicIcon name="BookOpen" size={15} className="text-teal-600" />
+                          <span className="text-xs font-black text-slate-800 uppercase tracking-wider font-sans">
+                            2. काव्य संग्रह प्रदाता एवं सृजन मंच (Poetry Management Desk)
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-bold font-mono">
+                          Total {poems.length} Items
+                        </span>
+                      </div>
+
+                      {/* Add/Edit Poetry Sub-form */}
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const tHd = formTitleHi.trim();
+                          const tEn = formTitle.trim();
+                          const cat = formCategory;
+                          const vrs = formVerses.trim();
+                          const dt = formDate;
+
+                          if (!tHd && !tEn) return;
+                          if (!vrs) return;
+
+                          // Helper function for local Hindi category map
+                          const getCatHi = (c: string) => {
+                            switch(c) {
+                              case 'Ghazal': return 'ग़ज़ल';
+                              case 'Nazm': return 'नज़्म';
+                              case 'Rubai': return 'रुबाई';
+                              case 'Kavita': return 'कविता';
+                              case 'Sher': return 'शेर';
+                              default: return 'अन्य';
+                            }
+                          };
+
+                          let updated: PoemItem[] = [];
+                          if (poetryEditId) {
+                            updated = poems.map(p => p.id === poetryEditId ? {
+                              ...p,
+                              title: tEn || tHd,
+                              titleHi: tHd || tEn,
+                              category: cat,
+                              categoryHi: getCatHi(cat),
+                              verses: vrs,
+                              date: dt
+                            } : p);
+                            setPoetryEditId(null);
+                          } else {
+                            const newPoem: PoemItem = {
+                              id: `poem-${Date.now()}`,
+                              title: tEn || tHd,
+                              titleHi: tHd || tEn,
+                              category: cat,
+                              categoryHi: getCatHi(cat),
+                              verses: vrs,
+                              date: dt || new Date().toISOString().split('T')[0],
+                              likes: 0
+                            };
+                            updated = [newPoem, ...poems];
+                          }
+
+                          if (onUpdatePoems) onUpdatePoems(updated);
+                          setFormTitleHi('');
+                          setFormTitle('');
+                          setFormVerses('');
+                          playSuccessChime();
+                        }}
+                        className="bg-slate-50 border border-slate-100 p-4 rounded-xl space-y-3.5 text-left font-sans"
+                      >
+                        <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-2.5 py-1 rounded border border-teal-200 uppercase tracking-widest block w-max font-sans">
+                          {poetryEditId ? '✍️ काव्य रचना संपादित करें / Modify' : '➕ नई काव्य रचना जोड़ें / Compose New'}
+                        </span>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[9px] font-bold text-slate-400 block pb-0.5 font-sans">शीर्षक - हिन्दी (Title Hindi) *</label>
+                            <input
+                              type="text"
+                              required
+                              value={formTitleHi}
+                              onChange={(e) => setFormTitleHi(e.target.value)}
+                              placeholder="उदा. रहबर की छांव"
+                              className="w-full text-xs p-2.5 border border-slate-200 rounded-xl bg-white font-medium focus:border-rose-450 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-bold text-slate-400 block pb-0.5 font-sans">English Title / Transliteration</label>
+                            <input
+                              type="text"
+                              value={formTitle}
+                              onChange={(e) => setFormTitle(e.target.value)}
+                              placeholder="e.g. Divine Guide"
+                              className="w-full text-xs p-2.5 border border-slate-200 rounded-xl bg-white font-medium focus:border-rose-450 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[9px] font-bold text-slate-400 block pb-0.5 font-sans font-sans">विधा (Category)</label>
+                            <select
+                              value={formCategory}
+                              onChange={(e) => setFormCategory(e.target.value as any)}
+                              className="w-full text-xs p-2.5 border border-slate-200 rounded-xl bg-white font-medium focus:border-rose-450 focus:outline-none"
+                            >
+                              <option value="Ghazal">ग़ज़ल (Ghazal)</option>
+                              <option value="Nazm">नज़्म (Nazm)</option>
+                              <option value="Rubai">रुबाई (Rubai)</option>
+                              <option value="Kavita">कविता (Kavita)</option>
+                              <option value="Sher">शेर व शायरी (Sher/Shayari)</option>
+                              <option value="Other">अन्य (Other)</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-bold text-slate-400 block pb-0.5 font-sans">तिथि (Date)</label>
+                            <input
+                              type="date"
+                              value={formDate}
+                              onChange={(e) => setFormDate(e.target.value)}
+                              className="w-full text-xs p-2.5 border border-slate-200 rounded-xl bg-white font-medium focus:border-rose-450 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-400 block pb-0.5 font-sans">काव्य पंक्तियाँ (Verses - Supports enters) *</label>
+                          <textarea
+                            required
+                            rows={4}
+                            value={formVerses}
+                            onChange={(e) => setFormVerses(e.target.value)}
+                            placeholder="यहाँ पंक्तियाँ लिखें। लाइन बदलने के लिए Enter करें..."
+                            className="w-full text-xs p-2.5 border border-slate-200 rounded-xl bg-white focus:ring-1 focus:ring-rose-200 focus:outline-none leading-relaxed font-serif text-center italic"
+                          />
+                        </div>
+
+                        <div className="flex justify-end gap-2.5">
+                          {poetryEditId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPoetryEditId(null);
+                                setFormTitleHi('');
+                                setFormTitle('');
+                                setFormVerses('');
+                                setFormDate(new Date().toISOString().split('T')[0]);
+                                playBubbleSound();
+                              }}
+                              className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer font-sans"
+                            >
+                              Cancel (रद्द करें)
+                            </button>
+                          )}
+                          <button
+                            type="submit"
+                            className="px-5 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-black text-xs rounded-xl shadow-md border-t border-white/20 active:scale-95 transition-all cursor-pointer font-sans"
+                          >
+                            {poetryEditId ? 'Apply Changes (सुधार सहेजें)' : 'Add to Collection (कविता सहेजें)'}
+                          </button>
+                        </div>
+                      </form>
+
+                      {/* Poetry catalog grid inside admin */}
+                      <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block font-mono text-left">
+                        Existing Custom Poems Database:
+                      </span>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[350px] overflow-y-auto pr-1 font-sans">
+                        {poems.map((poem) => (
+                          <div 
+                            key={poem.id} 
+                            className="bg-slate-50 border border-slate-100 p-3.5 rounded-xl shadow-xs flex flex-col justify-between text-left"
+                          >
+                            <div className="flex justify-between items-start gap-2 mb-2 font-sans">
+                              <span className="p-1 px-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-700 text-[9px] font-black tracking-widest rounded uppercase">
+                                {poem.category}
+                              </span>
+                              <span className="text-[9px] text-slate-400 font-mono flex items-center gap-0.5">
+                                <DynamicIcon name="Heart" size={9} className="text-rose-500 fill-rose-500" />
+                                {poem.likes || 0} Likes
+                              </span>
+                            </div>
+
+                            <p className="text-xs font-serif italic text-slate-750 text-center select-all whitespace-pre-wrap leading-relaxed py-2 line-clamp-3 border-b border-slate-200/50">
+                              {poem.verses}
+                            </p>
+
+                            <div className="flex justify-between items-center mt-2 pt-1 gap-2 font-sans">
+                              <div>
+                                <h5 className="text-xs font-extrabold text-slate-800 tracking-tight block font-sans">
+                                  {poem.titleHi || poem.title}
+                                </h5>
+                                <span className="text-[9px] text-slate-400 block font-mono">{poem.date}</span>
+                              </div>
+
+                              <div className="flex gap-1 font-sans">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPoetryEditId(poem.id);
+                                    setFormTitleHi(poem.titleHi || '');
+                                    setFormTitle(poem.title || '');
+                                    setFormCategory(poem.category);
+                                    setFormVerses(poem.verses);
+                                    setFormDate(poem.date);
+                                    playBubbleSound();
+                                  }}
+                                  className="p-1.5 bg-white border border-slate-200 hover:border-amber-400 text-slate-600 hover:text-amber-500 rounded-lg hover:bg-amber-100/10 transition-colors cursor-pointer"
+                                  title="Edit"
+                                >
+                                  <DynamicIcon name="FilePen" size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm('क्या आप सचमुच इस सुंदर कविता को हटाना चाहते हैं?')) {
+                                      const updated = poems.filter(p => p.id !== poem.id);
+                                      if (onUpdatePoems) onUpdatePoems(updated);
+                                      playSuccessChime();
+                                    }
+                                  }}
+                                  className="p-1.5 bg-white border border-slate-200 hover:border-rose-450 text-slate-600 hover:text-rose-600 rounded-lg hover:bg-rose-150/10 transition-colors cursor-pointer"
+                                  title="Delete"
+                                >
+                                  <DynamicIcon name="Trash2" size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
 
                     </div>
