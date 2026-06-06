@@ -7,7 +7,7 @@ export interface PoemItem {
   id: string;
   title: string;
   titleHi?: string;
-  category: 'Ghazal' | 'Nazm' | 'Kavita' | 'Sher' | 'Other';
+  category: 'Ghazal' | 'Nazm' | 'Rubai' | 'Kavita' | 'Sher' | 'Other';
   categoryHi?: string;
   verses: string;
   date: string;
@@ -71,6 +71,19 @@ export const DEFAULT_POEMS: PoemItem[] = [
 उनके कदमों में ही सारा जहाँ झुकता है मेरे रहनुमा।`,
     date: '2026-04-20',
     likes: 31
+  },
+  {
+    id: 'poem-4',
+    title: 'Path of Wisdom',
+    titleHi: 'रहबर की रुबाई',
+    category: 'Rubai',
+    categoryHi: 'रुबाई',
+    verses: `हर इक मंज़र को अपनी आँख से आसान कर देना,
+जहाँ नफ़रत धधकती हो वहाँ पर प्यार भर देना।
+सिखाया है हमें रहबर ने इंसानियत का ये सबक,
+कि भूखे लब की खातिर अपनी रोटी दान कर देना।`,
+    date: '2026-03-10',
+    likes: 42
   }
 ];
 
@@ -88,7 +101,7 @@ export const PoetryRahbarTab: React.FC<PoetryRahbarTabProps> = ({
   const [showComposer, setShowComposer] = useState<boolean>(false);
   const [newTitle, setNewTitle] = useState<string>('');
   const [newTitleHi, setNewTitleHi] = useState<string>('');
-  const [newCategory, setNewCategory] = useState<'Ghazal' | 'Nazm' | 'Kavita' | 'Sher' | 'Other'>('Ghazal');
+  const [newCategory, setNewCategory] = useState<'Ghazal' | 'Nazm' | 'Rubai' | 'Kavita' | 'Sher' | 'Other'>('Ghazal');
   const [newVerses, setNewVerses] = useState<string>('');
   const [newDate, setNewDate] = useState<string>(() => {
     return new Date().toISOString().split('T')[0];
@@ -114,6 +127,7 @@ export const PoetryRahbarTab: React.FC<PoetryRahbarTabProps> = ({
     { key: 'all', labelHi: 'सभी काव्य', labelEn: 'All Poetry' },
     { key: 'ghazal', labelHi: 'ग़ज़ल', labelEn: 'Ghazal' },
     { key: 'nazm', labelHi: 'नज़्म', labelEn: 'Nazm' },
+    { key: 'rubai', labelHi: 'रुबाई', labelEn: 'Rubai' },
     { key: 'kavita', labelHi: 'कविता', labelEn: 'Kavita' },
     { key: 'sher', labelHi: 'शेर व शायरी', labelEn: 'Couplets (Sher)' },
     { key: 'other', labelHi: 'अन्य रचनाएँ', labelEn: 'Other' },
@@ -223,6 +237,7 @@ export const PoetryRahbarTab: React.FC<PoetryRahbarTabProps> = ({
     switch (cat) {
       case 'Ghazal': return 'ग़ज़ल';
       case 'Nazm': return 'नज़्म';
+      case 'Rubai': return 'रुबाई';
       case 'Kavita': return 'कविता';
       case 'Sher': return 'शेर';
       default: return 'अन्य';
@@ -354,6 +369,7 @@ export const PoetryRahbarTab: React.FC<PoetryRahbarTabProps> = ({
                     >
                       <option value="Ghazal">ग़ज़ल (Ghazal)</option>
                       <option value="Nazm">नज़्म (Nazm)</option>
+                      <option value="Rubai">रुबाई (Rubai)</option>
                       <option value="Kavita">कविता (Kavita)</option>
                       <option value="Sher">शेर (Sher/Shayari)</option>
                       <option value="Other">अन्य (Other)</option>
