@@ -7,7 +7,7 @@
       "properties": {
         "value": {
           "type": "object",
-          "description": "Serialized data value (string, array, or object) for the specific document configuration key."
+          "description": "Serialized data value (string, array, or object) for the specific document configuration key (such as homepageConfig, customPages, milestones, and rahbar_poems collections)."
         }
       }
     }

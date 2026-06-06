@@ -1341,6 +1341,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
               {/* Right Side-panel dynamic details container */}
               <div className="md:col-span-9 p-6 md:p-8 overflow-y-auto space-y-6">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeAdminTab}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                    transition={{ duration: 0.22, ease: "easeOut" }}
+                  >
                 
                 {/* 0. HOMEPAGE CONFIGURATION MODULE */}
                 {activeAdminTab === 'homepage' && (
@@ -3915,6 +3923,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 )}
 
+                  </motion.div>
+                </AnimatePresence>
               </div>
             </div>
           </motion.div>

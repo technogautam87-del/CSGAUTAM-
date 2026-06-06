@@ -22,6 +22,7 @@ import { AchievementsTab } from './components/AchievementsTab';
 import { PhotoGalleryTab } from './components/PhotoGalleryTab';
 import { AdminPanel } from './components/AdminPanel';
 import { DynamicPageRenderer } from './components/DynamicPageRenderer';
+import { PoetryRahbarTab, DEFAULT_POEMS, PoemItem } from './components/PoetryRahbarTab';
 import { Footer } from './components/Footer';
 import { DynamicIcon } from './components/DynamicIcon';
 import { DockMenu } from './components/DockMenu';
@@ -86,6 +87,7 @@ export default function App() {
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [homepageConfig, setHomepageConfig] = useState<HomepageConfig>(INITIAL_HOMEPAGE_CONFIG);
   const [customPages, setCustomPages] = useState<CustomPage[]>([]);
+  const [rahbarPoems, setRahbarPoems] = useState<PoemItem[]>([]);
   
   const [appreciationCount, setAppreciationCount] = useState<number>(128);
   const [activeTab, setActiveTab] = useState<'intro' | 'timeline' | 'publications' | 'news' | 'achievements' | 'gallery'>('intro');
@@ -102,6 +104,8 @@ export default function App() {
 
   const [isScrolling, setIsScrolling] = useState<boolean>(false);
   const [scrollPercent, setScrollPercent] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
   
   // Global Search System states
   const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
@@ -112,15 +116,27 @@ export default function App() {
     return (localStorage.getItem('theme_tab_color') || 'indigo') as any;
   });
 
+  // Comprehensive page and scrolling metrics tracker
   useEffect(() => {
     let timeout: any;
-    const handleScroll = () => {
+    
+    const handleScrollAndMeasure = () => {
       setIsScrolling(true);
       
       const scrollTop = window.scrollY;
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
+      
+      const docHeight = scrollHeight - clientHeight;
       const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
       setScrollPercent(pct);
+
+      // Compute page reading progress metrics
+      const total = Math.max(1, Math.ceil(scrollHeight / (clientHeight || 1)));
+      const current = Math.min(total, Math.max(1, Math.floor((scrollTop + (clientHeight / 2)) / (clientHeight || 1)) + 1));
+      
+      setTotalPages(total);
+      setCurrentPage(current);
 
       clearTimeout(timeout);
       timeout = setTimeout(() => {
@@ -128,12 +144,35 @@ export default function App() {
       }, 400);
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('scroll', handleScrollAndMeasure, { passive: true });
+    window.addEventListener('resize', handleScrollAndMeasure);
+
+    // Initial measure
+    handleScrollAndMeasure();
+
     return () => {
-      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('scroll', handleScrollAndMeasure);
+      window.removeEventListener('resize', handleScrollAndMeasure);
       clearTimeout(timeout);
     };
   }, []);
+
+  // Sync measurement on activeTab changes with a minor offset to allow DOM to paint
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const scrollTop = window.scrollY;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
+      
+      const total = Math.max(1, Math.ceil(scrollHeight / (clientHeight || 1)));
+      const current = Math.min(total, Math.max(1, Math.floor((scrollTop + (clientHeight / 2)) / (clientHeight || 1)) + 1));
+      
+      setTotalPages(total);
+      setCurrentPage(current);
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [activeTab]);
 
   // Initialize and retrieve data from LocalStorage & Live Firebase Firestore Realtime Database
   useEffect(() => {
@@ -181,7 +220,25 @@ export default function App() {
     setHomepageConfig(parsedHomepage);
 
     const cCustomPages = localStorage.getItem('db_custom_pages');
-    setCustomPages(cCustomPages ? JSON.parse(cCustomPages) : []);
+    let loadedPages: CustomPage[] = cCustomPages ? JSON.parse(cCustomPages) : [];
+    const hasRahbar = loadedPages.some(p => p.id === 'rahbar');
+    if (!hasRahbar) {
+      const rahbarPage: CustomPage = {
+        id: 'rahbar',
+        title: 'Rahbar (Poetry)',
+        titleHi: 'रहबर (काव्य संग्रह)',
+        iconName: 'HeartHandshake',
+        content: '# Rahbar Poetry Collection\nWelcome to my poetry sanctuary.',
+        contentHi: '# रहबर काव्य संग्रह\nयहाँ मेरी कविताएँ और ग़ज़लें सहेजी हुई हैं।',
+        isActive: true
+      };
+      loadedPages = [rahbarPage, ...loadedPages];
+      localStorage.setItem('db_custom_pages', JSON.stringify(loadedPages));
+    }
+    setCustomPages(loadedPages);
+
+    const cPoems = localStorage.getItem('db_poems');
+    setRahbarPoems(cPoems ? JSON.parse(cPoems) : DEFAULT_POEMS);
 
     // Hearts/Appreciations
     const cachedAppr = localStorage.getItem('db_appreciation');
@@ -227,6 +284,9 @@ export default function App() {
         } else if (key === 'customPages' && Array.isArray(value)) {
           setCustomPages(value);
           localStorage.setItem('db_custom_pages', JSON.stringify(value));
+        } else if (key === 'rahbar_poems' && Array.isArray(value)) {
+          setRahbarPoems(value);
+          localStorage.setItem('db_poems', JSON.stringify(value));
         }
       });
     }, (error) => {
@@ -262,6 +322,12 @@ export default function App() {
     setCustomPages(updated);
     localStorage.setItem('db_custom_pages', JSON.stringify(updated));
     saveKeyToServer('customPages', updated);
+  };
+
+  const handleUpdatePoems = (updated: PoemItem[]) => {
+    setRahbarPoems(updated);
+    localStorage.setItem('db_poems', JSON.stringify(updated));
+    saveKeyToServer('rahbar_poems', updated);
   };
 
   const handleUpdateMilestones = (updated: TimelineMilestone[]) => {
@@ -384,6 +450,9 @@ export default function App() {
         } else if (key === 'customPages' && Array.isArray(value)) {
           setCustomPages(value);
           localStorage.setItem('db_custom_pages', JSON.stringify(value));
+        } else if (key === 'rahbar_poems' && Array.isArray(value)) {
+          setRahbarPoems(value);
+          localStorage.setItem('db_poems', JSON.stringify(value));
         }
       });
       return true;
@@ -1086,6 +1155,17 @@ export default function App() {
             {/* Dynamic customPages rendering container */}
             {customPages.filter(p => p.isActive).map((page) => {
               if (activeTab === page.id) {
+                if (page.id === 'rahbar') {
+                  return (
+                    <PoetryRahbarTab
+                      key={page.id}
+                      poems={rahbarPoems}
+                      onUpdatePoems={handleUpdatePoems}
+                      lang={lang}
+                      isAdminOpen={showAdminPanel}
+                    />
+                  );
+                }
                 return (
                   <DynamicPageRenderer
                     key={page.id}
@@ -1163,7 +1243,7 @@ export default function App() {
 
       {/* 3.2 SCROLL-PAL WALKING FLOATING KUNG-FU PANDA COMPANION */}
       {activeTab !== 'intro' && (
-        <div className="fixed bottom-6 right-6 z-40 flex flex-col items-center">
+        <div className="fixed bottom-6 right-6 z-40 flex flex-col items-center gap-2">
           <motion.div
             initial={{ scale: 0, y: 50 }}
             animate={{ scale: 1, y: 0 }}
@@ -1221,6 +1301,11 @@ export default function App() {
               <span>{lang === 'en' ? 'Click to hit!' : 'मुक्का मारने के लिए क्लिक करें!'}</span>
             </div>
           </motion.div>
+
+          {/* Reading progress (Page X of Y) label below the percentage */}
+          <div className="bg-slate-900/95 backdrop-blur-md text-[#fbbf24] font-mono text-[9px] font-extrabold tracking-wider px-2 py-0.5 rounded-lg border border-white/15 shadow-xl select-none leading-none scale-95 transition-all duration-300">
+            {lang === 'en' ? `Page ${currentPage} of ${totalPages}` : `पृष्ठ ${currentPage} का ${totalPages}`}
+          </div>
         </div>
       )}
 

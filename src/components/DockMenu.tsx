@@ -159,19 +159,19 @@ export const DockMenu: React.FC<DockMenuProps> = ({
           const isCurrentTab = item.id === activeTab || (item.id === 'admin' && isAdminOpen);
           
           // Magnification metrics based on distance
-          let scale = 1;
+          let scale = isCurrentTab ? 1.12 : 1;
           let y = 0;
           if (hoveredIdx !== null) {
             const dist = Math.abs(hoveredIdx - i);
             if (dist === 0) {
-              scale = 1.35;
-              y = -15;
+              scale = 1.38;
+              y = -14;
             } else if (dist === 1) {
-              scale = 1.15;
-              y = -8;
+              scale = 1.18;
+              y = -7;
             } else if (dist === 2) {
-              scale = 1.05;
-              y = -3;
+              scale = 1.06;
+              y = -2;
             }
           }
 
@@ -219,7 +219,7 @@ export const DockMenu: React.FC<DockMenuProps> = ({
                 }}
                 className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center relative cursor-pointer select-none transition-all duration-150 ${
                   isCurrentTab 
-                    ? `bg-slate-100 border-2 border-slate-200 shadow-inner md:scale-[1.1]` 
+                    ? `bg-slate-100 border-2 border-slate-200 shadow-inner` 
                     : 'bg-white hover:bg-slate-50 border border-slate-100 shadow-sm'
                 }`}
                 style={{ contentVisibility: 'auto' }}
