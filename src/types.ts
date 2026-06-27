@@ -144,5 +144,12 @@ export interface FeedbackItem {
   date: string; // ISO string or format
 }
 
+export interface UploadedFile {
+  name: string;
+  url: string;
+  size: number;
+  createdAt: string;
+}
+
 
 

@@ -57,6 +57,53 @@ app.post("/api/upload", upload.single("file"), (req: any, res: any) => {
   }
 });
 
+// API Route to list all uploaded files
+app.get("/api/uploads", (req, res) => {
+  try {
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      return res.json([]);
+    }
+    const files = fs.readdirSync(UPLOADS_DIR);
+    const fileList = files.map(file => {
+      const filePath = path.join(UPLOADS_DIR, file);
+      const stat = fs.statSync(filePath);
+      return {
+        name: file,
+        url: `/uploads/${file}`,
+        size: stat.size,
+        createdAt: stat.birthtime || stat.mtime
+      };
+    });
+    // Sort by creation time desc
+    fileList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return res.json(fileList);
+  } catch (err: any) {
+    console.error("Failed to list uploads:", err);
+    return res.status(500).json({ error: err.message || "Failed to list uploads." });
+  }
+});
+
+// API Route to delete an uploaded file
+app.delete("/api/uploads/:filename", (req, res) => {
+  try {
+    const filename = req.params.filename;
+    // Prevent directory traversal attacks
+    if (filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
+      return res.status(400).json({ error: "Invalid filename." });
+    }
+    const filePath = path.join(UPLOADS_DIR, filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      return res.json({ status: "success", message: "File deleted successfully from disk." });
+    } else {
+      return res.status(404).json({ error: "File not found on server." });
+    }
+  } catch (err: any) {
+    console.error("Failed to delete file:", err);
+    return res.status(500).json({ error: err.message || "Failed to delete file." });
+  }
+});
+
 const CONFIG_FILE_PATH = path.join(process.cwd(), "global_homepage_config.json");
 const GLOBAL_DATA_PATH = path.join(process.cwd(), "global_app_data.json");
 

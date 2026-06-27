@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { TimelineMilestone, Publication, NewsCutting, LiveVideo, Achievement, SliderPhoto, SocialLink, HomepageConfig, CustomPage, FeedbackItem } from '../types';
+import { TimelineMilestone, Publication, NewsCutting, LiveVideo, Achievement, SliderPhoto, SocialLink, HomepageConfig, CustomPage, FeedbackItem, UploadedFile } from '../types';
 import { DynamicIcon, AVAILABLE_ACCENT_ICONS } from './DynamicIcon';
 import { playBubbleSound, playSuccessChime, playKeyTap, playErrorAlert } from '../audio';
 import { PoemItem } from './PoetryRahbarTab';
@@ -306,7 +306,53 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [refreshSuccess, setRefreshSuccess] = useState<boolean | null>(null);
 
   // Section selectors
-  const [activeAdminTab, setActiveAdminTab] = useState<'homepage' | 'timeline' | 'achievements' | 'publications' | 'slides' | 'social' | 'news' | 'videos' | 'customPages' | 'rahbar_poetry' | 'feedback'>('homepage');
+  const [activeAdminTab, setActiveAdminTab] = useState<'homepage' | 'timeline' | 'achievements' | 'publications' | 'slides' | 'social' | 'news' | 'videos' | 'customPages' | 'rahbar_poetry' | 'feedback' | 'uploads'>('homepage');
+
+  // Uploaded files list state
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [isLoadingUploads, setIsLoadingUploads] = useState<boolean>(false);
+  const [copySuccessId, setCopySuccessId] = useState<string | null>(null);
+
+  const fetchUploadedFiles = async () => {
+    setIsLoadingUploads(true);
+    try {
+      const response = await fetch('/api/uploads');
+      if (response.ok) {
+        const data = await response.json();
+        setUploadedFiles(data);
+      } else {
+        console.error('Failed to load uploaded files');
+      }
+    } catch (err) {
+      console.error('Error fetching uploaded files:', err);
+    } finally {
+      setIsLoadingUploads(false);
+    }
+  };
+
+  const handleDeleteUploadedFile = async (filename: string) => {
+    try {
+      const response = await fetch(`/api/uploads/${encodeURIComponent(filename)}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        playSuccessChime();
+        setUploadedFiles(prev => prev.filter(file => file.name !== filename));
+      } else {
+        const errData = await response.json();
+        alert(errData.error || 'Failed to delete file');
+      }
+    } catch (err) {
+      console.error('Error deleting file:', err);
+      alert('Error deleting file');
+    }
+  };
+
+  React.useEffect(() => {
+    if (activeAdminTab === 'uploads') {
+      fetchUploadedFiles();
+    }
+  }, [activeAdminTab]);
 
   // Custom pages form states
   const [editingPageId, setEditingPageId] = useState<string>('');
@@ -1057,6 +1103,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     playBubbleSound();
   };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const isImageFile = (filename: string) => {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext || '');
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 admin-panel-container">
       <style>{`
@@ -1285,7 +1344,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   { key: 'social', icon: 'Globe', label: 'Social Networks' },
                   { key: 'customPages', icon: 'PlusSquare', label: 'Manage Pages (कस्टम पेज)' },
                   { key: 'rahbar_poetry', icon: 'Sparkles', label: 'रहबर काव्य (Poetry Config)' },
-                  { key: 'feedback', icon: 'MessageSquare', label: 'User Feedbacks (फीडबैक)' }
+                  { key: 'feedback', icon: 'MessageSquare', label: 'User Feedbacks (फीडबैक)' },
+                  { key: 'uploads', icon: 'FolderOpen', label: 'Uploaded Media (अपलोड मीडिया)' }
                 ].map((item) => (
                   <button
                     key={item.key}
@@ -4417,6 +4477,155 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               </button>
                             </div>
                           ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 7. UPLOADED MEDIA (अपलोड की गई फ़ाइलें) */}
+                {activeAdminTab === 'uploads' && (
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4 border-b pb-2 flex justify-between items-center">
+                      <span>Uploaded Files & Media (अपलोड की गई तस्वीरें और फ़ाइलें)</span>
+                      <button
+                        onClick={fetchUploadedFiles}
+                        disabled={isLoadingUploads}
+                        className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg border border-slate-200 cursor-pointer flex items-center gap-1.5 transition-all disabled:opacity-50"
+                      >
+                        <DynamicIcon name="RefreshCw" size={11} className={isLoadingUploads ? 'animate-spin' : ''} />
+                        <span>{lang === 'hi' ? 'अपडेट करें' : 'Refresh'}</span>
+                      </button>
+                    </h4>
+
+                    {isLoadingUploads ? (
+                      <div className="flex flex-col items-center justify-center py-24 space-y-3">
+                        <DynamicIcon name="Loader" size={24} className="animate-spin text-indigo-600" />
+                        <p className="text-xs font-bold text-slate-500">
+                          {lang === 'hi' ? 'अपलोड की गई फ़ाइलें लोड हो रही हैं...' : 'Loading uploaded media...'}
+                        </p>
+                      </div>
+                    ) : uploadedFiles.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center text-center py-16 space-y-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        <span className="text-4xl">📁</span>
+                        <div>
+                          <p className="text-sm font-black text-slate-700">No uploaded files found</p>
+                          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">
+                            When you upload pictures or PDFs using the "Upload to Cloud" or "Upload File" buttons in the tabs above, they will appear here!
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="text-left bg-indigo-50/50 border border-indigo-100/40 p-3 rounded-2xl">
+                          <p className="text-[10px] leading-relaxed text-indigo-950 font-bold flex items-start gap-1.5">
+                            <span className="text-xs">💡</span>
+                            <span>
+                              {lang === 'hi'
+                                ? 'इन चित्रों के लिंक को कॉपी करके आप वेबसाइट के किसी भी फोटो फील्ड, स्लाइडर, या पब्लिकेशन के इमेज यूआरएल में इस्तेमाल कर सकते हैं।'
+                                : 'Copy the URLs below and paste them into any form fields (like Photo Gallery Slider, Profile Image URL, or Publications PDF link) to reuse them across the app!'}
+                            </span>
+                          </p>
+                        </div>
+
+                        {/* File Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5 max-h-[65vh] overflow-y-auto pr-1">
+                          {uploadedFiles.map((file) => {
+                            const isImg = isImageFile(file.name);
+                            return (
+                              <div
+                                key={file.name}
+                                className="bg-white rounded-2xl border border-slate-100 hover:border-indigo-200 hover:shadow-xs transition-all flex flex-col group text-left overflow-hidden relative"
+                              >
+                                {/* Media Preview Area */}
+                                <div className="h-28 bg-slate-50 border-b border-slate-50 flex items-center justify-center relative overflow-hidden group-hover:bg-slate-100/50 transition-colors">
+                                  {isImg ? (
+                                    <img
+                                      src={file.url}
+                                      alt={file.name}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-350"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  ) : (
+                                    <div className="flex flex-col items-center justify-center space-y-1">
+                                      <span className="text-3xl">📄</span>
+                                      <span className="text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-100 font-mono">
+                                        {file.name.split('.').pop() || 'FILE'}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {/* Delete Hover Button */}
+                                  <button
+                                    onClick={() => {
+                                      if (confirm(lang === 'hi' ? 'क्या आप इस फ़ाइल को सर्वर से हमेशा के लिए हटाना चाहते हैं?' : 'Are you sure you want to permanently delete this file?')) {
+                                        handleDeleteUploadedFile(file.name);
+                                      }
+                                    }}
+                                    className="absolute top-2 right-2 p-1.5 bg-rose-500 text-white hover:bg-rose-600 rounded-lg shadow-xs cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity z-10 duration-200"
+                                    title="Delete File"
+                                  >
+                                    <DynamicIcon name="Trash2" size={11} />
+                                  </button>
+                                </div>
+
+                                {/* Media Meta Details */}
+                                <div className="p-2.5 flex-1 flex flex-col justify-between space-y-2">
+                                  <div>
+                                    <p
+                                      className="text-[10px] font-extrabold text-slate-800 truncate leading-tight"
+                                      title={file.name}
+                                    >
+                                      {file.name}
+                                    </p>
+                                    <div className="flex items-center justify-between mt-1 text-[9px] text-slate-400 font-semibold font-mono leading-none">
+                                      <span>{formatFileSize(file.size)}</span>
+                                      <span>
+                                        {file.createdAt ? new Date(file.createdAt).toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-US', {
+                                          month: 'short',
+                                          day: 'numeric'
+                                        }) : ''}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Actions Footer */}
+                                  <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-slate-100">
+                                    <button
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(file.url);
+                                        setCopySuccessId(file.name);
+                                        playSuccessChime();
+                                        setTimeout(() => setCopySuccessId(null), 2000);
+                                      }}
+                                      className="px-1.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[9px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                                    >
+                                      <DynamicIcon
+                                        name={copySuccessId === file.name ? 'Check' : 'Copy'}
+                                        size={9}
+                                        className={copySuccessId === file.name ? 'text-emerald-600' : ''}
+                                      />
+                                      <span>
+                                        {copySuccessId === file.name
+                                          ? (lang === 'hi' ? 'कॉपी!' : 'Copied!')
+                                          : (lang === 'hi' ? 'कॉपी' : 'Copy')}
+                                      </span>
+                                    </button>
+
+                                    <a
+                                      href={file.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="px-1.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[9px] font-extrabold flex items-center justify-center gap-1 transition-colors"
+                                    >
+                                      <DynamicIcon name="ExternalLink" size={9} />
+                                      <span>{lang === 'hi' ? 'देखें' : 'View'}</span>
+                                    </a>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
