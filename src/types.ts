@@ -24,9 +24,11 @@ export interface Publication {
   type: 'article' | 'pdf' | 'notes' | 'departmental';
   description: string;
   descriptionHi?: string;
+  desc?: string;
   link: string;
   date: string;
   author: string;
+  thumbnailUrl?: string;
 }
 
 export interface NewsCutting {
@@ -132,5 +134,15 @@ export interface CustomPage {
   contentHi: string;
   isActive: boolean;
 }
+
+export interface FeedbackItem {
+  id: string;
+  name: string;
+  email?: string;
+  rating: number; // 1 to 5 stars
+  message: string;
+  date: string; // ISO string or format
+}
+
 
 

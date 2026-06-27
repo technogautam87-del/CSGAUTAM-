@@ -287,7 +287,7 @@ const PublicationCard: React.FC<PublicationCardProps> = ({
           {/* Centered visual graphic mock with rounded corners and light shadow */}
           <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-slate-50 border border-slate-100 shadow-inner flex items-center justify-center p-1.5 mb-4 group-hover:scale-[1.01] transition-transform duration-300">
             <img
-              src={getPublicationImage(pub.id)}
+              src={pub.thumbnailUrl || getPublicationImage(pub.id)}
               referrerPolicy="no-referrer"
               alt={displayTitle}
               className="w-full h-full object-cover rounded-xl shadow-xs"

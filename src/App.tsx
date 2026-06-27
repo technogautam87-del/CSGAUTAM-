@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Helmet } from 'react-helmet-async';
 import { db } from './firebase';
-import { doc, setDoc, onSnapshot, collection, getDocsFromServer } from 'firebase/firestore';
-import { TimelineMilestone, Publication, NewsCutting, LiveVideo, Achievement, SliderPhoto, SocialLink, HomepageConfig, CustomPage } from './types';
+import { doc, setDoc, onSnapshot, collection, getDocsFromServer, deleteDoc } from 'firebase/firestore';
+import { TimelineMilestone, Publication, NewsCutting, LiveVideo, Achievement, SliderPhoto, SocialLink, HomepageConfig, CustomPage, FeedbackItem } from './types';
 import { InteractiveAvatar } from './components/InteractiveAvatar';
 import {
   INITIAL_TIMELINE_MILESTONES,
@@ -26,6 +27,7 @@ import { PoetryRahbarTab, DEFAULT_POEMS, PoemItem } from './components/PoetryRah
 import { Footer } from './components/Footer';
 import { DynamicIcon } from './components/DynamicIcon';
 import { DockMenu } from './components/DockMenu';
+import { FeedbackWidget } from './components/FeedbackWidget';
 import { toggleMute, playSuccessChime, playBubbleSound, getMuteState } from './audio';
 import { TRANSLATIONS } from './translations';
 import { GuidedTour } from './components/GuidedTour';
@@ -88,15 +90,14 @@ export default function App() {
   const [homepageConfig, setHomepageConfig] = useState<HomepageConfig>(INITIAL_HOMEPAGE_CONFIG);
   const [customPages, setCustomPages] = useState<CustomPage[]>([]);
   const [rahbarPoems, setRahbarPoems] = useState<PoemItem[]>([]);
+  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
   
   const [appreciationCount, setAppreciationCount] = useState<number>(128);
   const [activeTab, setActiveTab] = useState<'intro' | 'timeline' | 'publications' | 'news' | 'achievements' | 'gallery'>('intro');
   const [selectedTimelineYear, setSelectedTimelineYear] = useState<number | undefined>(undefined);
   const [showAdminPanel, setShowAdminPanel] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [showCinematic, setShowCinematic] = useState<boolean>(() => {
-    return sessionStorage.getItem('has_seen_cinematic') !== 'true';
-  });
+  const [showCinematic, setShowCinematic] = useState<boolean>(false);
   
   // Custom states for bilingual system & live visit counter
   const [lang, setLang] = useState<'en' | 'hi'>('hi');
@@ -115,6 +116,150 @@ export default function App() {
   const [themeTabColor, setThemeTabColor] = useState<'indigo' | 'teal' | 'rose' | 'emerald' | 'amber' | 'violet'>(() => {
     return (localStorage.getItem('theme_tab_color') || 'indigo') as any;
   });
+
+  // Security prevention state and listeners
+  const [securityWarning, setSecurityWarning] = useState<{ show: boolean; msg: string }>({ show: false, msg: '' });
+
+  useEffect(() => {
+    if (securityWarning.show) {
+      const timer = setTimeout(() => {
+        setSecurityWarning({ show: false, msg: '' });
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [securityWarning.show]);
+
+  useEffect(() => {
+    const triggerWarning = (msgHi: string, msgEn: string) => {
+      setSecurityWarning({
+        show: true,
+        msg: lang === 'hi' ? msgHi : msgEn
+      });
+      playBubbleSound();
+    };
+
+    const handleCopyCutPaste = (e: ClipboardEvent) => {
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (
+        activeEl.tagName === 'INPUT' || 
+        activeEl.tagName === 'TEXTAREA' || 
+        activeEl.getAttribute('contenteditable') === 'true'
+      );
+      if (isInput) return;
+
+      e.preventDefault();
+      triggerWarning(
+        'सुरक्षा कारणों से इस वेबसाइट पर कट, कॉपी और पेस्ट करना प्रतिबंधित है!',
+        'Cut, copy, and paste are restricted on this website for security reasons!'
+      );
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (
+        activeEl.tagName === 'INPUT' || 
+        activeEl.tagName === 'TEXTAREA' || 
+        activeEl.getAttribute('contenteditable') === 'true'
+      );
+      if (isInput) return;
+
+      e.preventDefault();
+      triggerWarning(
+        'सुरक्षा कारणों से राईट-क्लिक (कंटेक्स्ट मेनू) प्रतिबंधित है!',
+        'Right-click context menu is restricted for security reasons!'
+      );
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (
+        activeEl.tagName === 'INPUT' || 
+        activeEl.tagName === 'TEXTAREA' || 
+        activeEl.getAttribute('contenteditable') === 'true'
+      );
+
+      // Block Ctrl+C, Ctrl+V, Ctrl+X, Cmd+C, Cmd+V, Cmd+X
+      const isCopyPasteKey = (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'v' || e.key === 'x');
+      if (isCopyPasteKey && !isInput) {
+        e.preventDefault();
+        triggerWarning(
+          'शॉर्टकट द्वारा कॉपी, पेस्ट या कट करना प्रतिबंधित है!',
+          'Copy, paste, or cut via keyboard shortcuts is restricted!'
+        );
+        return;
+      }
+
+      // Block print Ctrl+P / Cmd+P
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        triggerWarning(
+          'इस वेबसाइट को प्रिंट करना या पीडीएफ बनाना प्रतिबंधित है!',
+          'Printing or generating PDF of this website is restricted!'
+        );
+        return;
+      }
+
+      // Block F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Cmd+Opt+I
+      const isDevTools = e.key === 'F12' || 
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) ||
+        ((e.ctrlKey || e.metaKey) && e.altKey && (e.key === 'I' || e.key === 'i'));
+      
+      if (isDevTools) {
+        e.preventDefault();
+        triggerWarning(
+          'डेवलपर टूल्स का उपयोग सुरक्षा कारणों से प्रतिबंधित है!',
+          'Access to Developer Tools is restricted for security reasons!'
+        );
+        return;
+      }
+
+      // Detect PrintScreen or Snipping tool keys
+      if (e.key === 'PrintScreen' || e.key === 'PrtScn') {
+        e.preventDefault();
+        try {
+          if (document.hasFocus()) {
+            navigator.clipboard?.writeText?.(' ')?.catch?.(() => {});
+          }
+        } catch (err) {
+          // ignore error
+        }
+        triggerWarning(
+          'स्क्रीनशॉट लेना प्रतिबंधित है! क्लिपबोर्ड साफ़ कर दिया गया है।',
+          'Screenshots are restricted! Clipboard has been cleared.'
+        );
+      }
+    };
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'hidden') {
+        try {
+          if (document.hasFocus()) {
+            navigator.clipboard?.writeText?.(' ')?.catch?.(() => {});
+          }
+        } catch (err) {
+          // ignore error
+        }
+      }
+    };
+
+    document.addEventListener('copy', handleCopyCutPaste);
+    document.addEventListener('cut', handleCopyCutPaste);
+    document.addEventListener('paste', handleCopyCutPaste);
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('blur', handleVisibilityOrFocus);
+
+    return () => {
+      document.removeEventListener('copy', handleCopyCutPaste);
+      document.removeEventListener('cut', handleCopyCutPaste);
+      document.removeEventListener('paste', handleCopyCutPaste);
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('blur', handleVisibilityOrFocus);
+    };
+  }, [lang]);
 
   // Comprehensive page and scrolling metrics tracker
   useEffect(() => {
@@ -293,27 +438,75 @@ export default function App() {
       console.warn("Firestore collection subscription failed:", error);
     });
 
+    const unsubscribeFeedbacks = onSnapshot(collection(db, 'feedbacks'), (snapshot) => {
+      const list: FeedbackItem[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        list.push({
+          id: doc.id,
+          name: data.name || '',
+          email: data.email || undefined,
+          rating: typeof data.rating === 'number' ? data.rating : 5,
+          message: data.message || '',
+          date: data.date || ''
+        });
+      });
+      // Sort by date descending
+      list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setFeedbacks(list);
+    }, (error) => {
+      console.warn("Firestore feedbacks subscription failed:", error);
+    });
+
     return () => {
       unsubscribe();
+      unsubscribeFeedbacks();
     };
   }, []);
 
   // Helper to save server-side and Firestore immediately for true global updates
   const saveKeyToServer = async (key: string, value: any) => {
+    // Recursively clean object to remove any keys with 'undefined' values (which crash Firestore)
+    const cleanValue = (val: any): any => {
+      if (Array.isArray(val)) {
+        return val.map(item => cleanValue(item));
+      } else if (val !== null && typeof val === 'object') {
+        const cleaned: any = {};
+        for (const k of Object.keys(val)) {
+          if (val[k] !== undefined) {
+            cleaned[k] = cleanValue(val[k]);
+          }
+        }
+        return cleaned;
+      }
+      return val;
+    };
+
+    const sanitizedValue = cleanValue(value);
+
     // 1. Back up to the local express server JSON file (non-blocking)
     fetch('/api/global_data', {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key, value }),
+      body: JSON.stringify({ key, value: sanitizedValue }),
     })
     .catch(err => console.warn("API Server fallback save failed (non-blocking):", err));
 
     // 2. Commit directly to global Cloud Firestore so every browser tab globally is updated in real-time
     try {
-      await setDoc(doc(db, "global_data", key), { value });
+      await setDoc(doc(db, "global_data", key), { value: sanitizedValue });
       console.log(`Successfully persisted ${key} to Cloud Firestore globally!`);
     } catch (err) {
       console.error(`Error saving ${key} to Cloud Firestore:`, err);
+    }
+  };
+
+  const handleDeleteFeedback = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'feedbacks', id));
+      console.log(`Successfully deleted feedback document: ${id}`);
+    } catch (err) {
+      console.error('Error deleting feedback:', err);
     }
   };
 
@@ -511,8 +704,101 @@ export default function App() {
   const currentTabTheme = TAB_THEMES[themeTabColor] || TAB_THEMES.indigo;
 
   return (
-    <div className="min-h-screen bg-gradient-to-tr from-indigo-100/45 via-rose-100/35 to-emerald-100/35 dark:from-slate-950 dark:via-purple-950/25 dark:to-indigo-950/40 text-slate-800 dark:text-slate-100 font-sans selection:bg-indigo-500 selection:text-white antialiased flex flex-col justify-between relative overflow-hidden">
+    <div className="min-h-screen bg-white text-slate-800 font-sans selection:bg-indigo-500 selection:text-white antialiased flex flex-col justify-between relative overflow-hidden">
       
+      {/* 0. SEO & SOCIAL META TAGS (React Helmet) */}
+      <Helmet>
+        <title>
+          {lang === 'hi'
+            ? `${homepageConfig.teacherNameHi || 'चंद्रशेखर गौतम'} | ${homepageConfig.teacherRoleHi || 'समावेशी विशेष शिक्षक'}`
+            : `${homepageConfig.teacherName || 'Chandrashekhar Gautam'} | ${homepageConfig.teacherRole || 'Inclusive Special Educator'}`
+          }
+        </title>
+        <meta
+          name="description"
+          content={lang === 'hi'
+            ? (homepageConfig.heroDescHi || `${homepageConfig.teacherNameHi || 'चंद्रशेखर गौतम'} की यात्रा, अनुसंधान, प्रकाशनों, और उनके द्वारा विकसित की गई विशेष खेल सामग्री (toys for learning) के बारे में जानें।`)
+            : (homepageConfig.heroDesc || `Discover the inclusive teaching journey, publications, academic achievements, and customized educational toys developed by ${homepageConfig.teacherName || 'Chandrashekhar Gautam'}.`)
+          }
+        />
+        <meta
+          name="keywords"
+          content={lang === 'hi'
+            ? "चंद्रशेखर गौतम, विशेष शिक्षक, समावेशी शिक्षा, खेल द्वारा अधिगम, शिक्षण विधियां, अनुसंधान, विशेष विद्यालय, खिलौने, दिव्यांग बच्चे"
+            : "Chandrashekhar Gautam, Special Educator, Inclusive Education, Toy-based learning, Pedagogy, Research, Inclusive Toys, Special Needs, Autism, ADHD, Teaching Aid"
+          }
+        />
+        
+        {/* OpenGraph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={typeof window !== 'undefined' ? window.location.href : ''} />
+        <meta
+          property="og:title"
+          content={lang === 'hi'
+            ? `${homepageConfig.teacherNameHi || 'चंद्रशेखर गौतम'} | ${homepageConfig.teacherRoleHi || 'समावेशी विशेष शिक्षक'}`
+            : `${homepageConfig.teacherName || 'Chandrashekhar Gautam'} | ${homepageConfig.teacherRole || 'Inclusive Special Educator'}`
+          }
+        />
+        <meta
+          property="og:description"
+          content={lang === 'hi'
+            ? (homepageConfig.heroDescHi || `${homepageConfig.teacherNameHi || 'चंद्रशेखर गौतम'} की यात्रा और समावेशी शिक्षण विधियों के बारे में जानें।`)
+            : (homepageConfig.heroDesc || `Discover the inclusive teaching journey and custom learning toys developed by ${homepageConfig.teacherName || 'Chandrashekhar Gautam'}.`)
+          }
+        />
+        <meta
+          property="og:image"
+          content={homepageConfig.teacherImageUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=600'}
+        />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content={typeof window !== 'undefined' ? window.location.href : ''} />
+        <meta
+          name="twitter:title"
+          content={lang === 'hi'
+            ? `${homepageConfig.teacherNameHi || 'चंद्रशेखर गौतम'} | ${homepageConfig.teacherRoleHi || 'समावेशी विशेष शिक्षक'}`
+            : `${homepageConfig.teacherName || 'Chandrashekhar Gautam'} | ${homepageConfig.teacherRole || 'Inclusive Special Educator'}`
+          }
+        />
+        <meta
+          name="twitter:description"
+          content={lang === 'hi'
+            ? (homepageConfig.heroDescHi || `${homepageConfig.teacherNameHi || 'चंद्रशेखर गौतम'} की यात्रा और समावेशी शिक्षण विधियों के बारे में जानें।`)
+            : (homepageConfig.heroDesc || `Discover the inclusive teaching journey and custom learning toys developed by ${homepageConfig.teacherName || 'Chandrashekhar Gautam'}.`)
+          }
+        />
+        <meta
+          name="twitter:image"
+          content={homepageConfig.teacherImageUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=600'}
+        />
+      </Helmet>
+
+      {/* Dynamic Security Policy Restriction Overlay Banner */}
+      <AnimatePresence>
+        {securityWarning.show && (
+          <motion.div
+            initial={{ opacity: 0, y: -80, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -40, scale: 0.9 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 150 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] w-[90%] max-w-md bg-rose-500/95 backdrop-blur-md text-white px-5 py-4 rounded-2xl shadow-[0_15px_40px_rgba(244,63,94,0.35)] border border-rose-400 flex items-start gap-3.5 select-none"
+          >
+            <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center text-lg">
+              🛡️
+            </div>
+            <div className="space-y-0.5 text-left">
+              <h4 className="text-xs font-black uppercase tracking-wider text-rose-100">
+                {lang === 'hi' ? 'सुरक्षा चेतावनी' : 'Security Alert'}
+              </h4>
+              <p className="text-[12px] leading-relaxed font-semibold">
+                {securityWarning.msg}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Cinematic Space NASA Intro welcome console */}
       {showCinematic && (
         <CinematicIntro lang={lang} onEnter={() => {
@@ -521,63 +807,57 @@ export default function App() {
         }} />
       )}
 
-      {/* Vibrant Visual Accent Color Theme Backdrops */}
-      <div className="absolute top-[8%] left-[-15%] w-[40rem] h-[40rem] rounded-full bg-gradient-to-tr from-indigo-400/20 to-purple-400/20 blur-[140px] opacity-80 pointer-events-none select-none z-0 dark:from-indigo-900/15 dark:to-purple-900/10" />
-      <div className="absolute bottom-[15%] right-[-10%] w-[35rem] h-[35rem] rounded-full bg-gradient-to-br from-rose-400/25 to-pink-300/15 blur-[120px] opacity-85 pointer-events-none select-none z-0 dark:from-rose-950/15 dark:to-pink-950/5" />
-      <div className="absolute top-[45%] left-[25%] w-[30rem] h-[30rem] rounded-full bg-gradient-to-r from-amber-300/20 to-orange-300/15 blur-[110px] opacity-70 pointer-events-none select-none z-0 dark:from-amber-955/10 dark:to-orange-955/10" />
-      <div className="absolute bottom-[40%] left-[-10%] w-[30rem] h-[30rem] rounded-full bg-gradient-to-tr from-teal-400/15 to-emerald-400/15 blur-[120px] opacity-65 pointer-events-none select-none z-0 dark:from-teal-950/10 dark:to-emerald-950/10" />
-
       
       {/* 1. TOP DUAL HEADER BAR (Navigation System) */}
-      {activeTab !== 'intro' ? (
-        <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-xs">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            
-            {/* Left Brand Area */}
-            <div
-              className="flex items-center gap-2 cursor-pointer group"
-              onClick={() => {
-                setActiveTab('intro');
-                playSuccessChime();
-              }}
-            >
-              <span className="text-2xl group-hover:rotate-12 transition-transform">🧩</span>
-              <div>
-                <h1 className="font-extrabold text-sm text-slate-900 tracking-tight leading-none">
-                  {lang === 'en' ? 'Chandrashekhar Gautam' : 'चंद्रशेखर गौतम'}
-                </h1>
-                <p className="text-[10px] text-teal-600 font-bold tracking-wide mt-0.5 uppercase">
-                  {t.specialTeacherHub}
-                </p>
-              </div>
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-xs">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          
+          {/* Left Brand Area */}
+          <div
+            className="flex items-center gap-2 cursor-pointer group"
+            onClick={() => {
+              setActiveTab('intro');
+              playSuccessChime();
+            }}
+          >
+            <span className="text-2xl group-hover:rotate-12 transition-transform">🧩</span>
+            <div>
+              <h1 className="font-extrabold text-sm text-slate-900 tracking-tight leading-none">
+                {lang === 'en' ? 'Chandrashekhar Gautam' : 'चंद्रशेखर गौतम'}
+              </h1>
             </div>
+          </div>
 
-            {/* Central responsive links */}
-            <nav className="hidden lg:flex items-center gap-1">
-              {[
-                { id: 'intro', label: t.welcome },
-                { id: 'timeline', label: t.journey },
-                { id: 'gallery', label: t.photoGallery },
-                { id: 'publications', label: t.publications },
-                { id: 'news', label: t.newsAndVideos },
-                { id: 'achievements', label: t.achievements }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id as any);
-                    playBubbleSound();
-                  }}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer relative ${
-                    activeTab === tab.id
-                      ? currentTabTheme.textActive
-                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
+          {/* Central responsive links */}
+          <nav className="hidden lg:flex items-center gap-1">
+            {[
+              { id: 'intro', label: t.welcome },
+              { id: 'timeline', label: t.journey },
+              { id: 'gallery', label: t.photoGallery },
+              { id: 'publications', label: t.publications },
+              { id: 'news', label: t.newsAndVideos },
+              { id: 'achievements', label: t.achievements },
+              ...customPages.filter(p => p.isActive).map(p => ({
+                id: p.id,
+                label: lang === 'hi' ? p.titleHi || p.title : p.title
+              }))
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id as any);
+                  playBubbleSound();
+                }}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer relative ${
+                  activeTab === tab.id
+                    ? currentTabTheme.textActive
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
 
             {/* New Desktop Search Input with real-time autocompleting results dropdown */}
             <div className="relative hidden lg:block w-40 xl:w-56 z-50">
@@ -726,67 +1006,6 @@ export default function App() {
 
             {/* Right Area: Languages toggler, sound, admin lock */}
             <div className="flex items-center gap-2">
-              
-              {/* Cinematic Space Intro welcome manual trigger */}
-              <button
-                onClick={() => {
-                  sessionStorage.setItem('has_seen_cinematic', 'false');
-                  setShowCinematic(true);
-                  playSuccessChime();
-                }}
-                className="px-2.5 py-2 text-xs font-bold border border-indigo-500/20 text-indigo-700 bg-indigo-50/40 hover:bg-indigo-100/60 rounded-xl cursor-pointer transition-all flex items-center gap-1.5"
-                title={lang === 'en' ? 'Watch Interactive Cinematic Space Intro' : 'इंटरएक्टिव स्पेस स्वागत देखें'}
-              >
-                <span>🌍</span>
-                <span className="hidden sm:inline font-bold">{lang === 'en' ? 'Space Console' : 'स्पेस पोर्टल'}</span>
-              </button>
-
-              {/* Elegant Color Theme Switcher Widget */}
-              <div className="hidden sm:flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 p-1.5 rounded-xl border border-slate-200/40 dark:border-slate-700/40 select-none">
-                {(['indigo', 'teal', 'rose', 'emerald', 'amber', 'violet'] as const).map((color) => {
-                  const colorsMap = {
-                    indigo: 'bg-indigo-550 dark:bg-indigo-500 ring-indigo-400',
-                    teal: 'bg-teal-550 dark:bg-teal-500 ring-teal-400',
-                    rose: 'bg-rose-550 dark:bg-rose-500 ring-rose-400',
-                    emerald: 'bg-emerald-550 dark:bg-emerald-500 ring-emerald-400',
-                    amber: 'bg-amber-550 dark:bg-amber-500 ring-amber-400',
-                    violet: 'bg-violet-550 dark:bg-violet-500 ring-violet-400'
-                  };
-                  const isActive = themeTabColor === color;
-                  return (
-                    <button
-                      key={color}
-                      onClick={() => {
-                        setThemeTabColor(color);
-                        localStorage.setItem('theme_tab_color', color);
-                        playBubbleSound();
-                      }}
-                      className={`w-3 h-3 rounded-full ${colorsMap[color]} cursor-pointer transition-all duration-300 hover:scale-130 ${
-                        isActive ? 'ring-2 ring-offset-1 dark:ring-offset-slate-900 ring-slate-800 dark:ring-white scale-115 shadow-sm' : 'opacity-65 hover:opacity-100'
-                      }`}
-                      title={`Theme: ${color}`}
-                    />
-                  );
-                })}
-              </div>
-
-              {/* Bilingual toggle button (English / हिंदी) */}
-              <button
-                onClick={() => {
-                  const nextLang = lang === 'en' ? 'hi' : 'en';
-                  setLang(nextLang);
-                  localStorage.setItem('db_lang', nextLang);
-                  playSuccessChime();
-                }}
-                className="px-3 py-2 text-xs font-bold border border-emerald-500/20 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100/60 rounded-xl cursor-pointer transition-all flex items-center gap-1.5"
-                title={lang === 'en' ? 'हिंदी भाषा में बदलें' : 'Switch to English'}
-              >
-                <span className="text-sm">🌐</span>
-                <span className="text-[10px] uppercase font-bold tracking-wide">
-                  {lang === 'en' ? 'हिंदी' : 'English'}
-                </span>
-              </button>
-
               {/* Mobile Search toggler button */}
               <button
                 onClick={() => {
@@ -828,14 +1047,18 @@ export default function App() {
           </div>
 
           {/* Mobile Navigation bar snippet */}
-          <div className="lg:hidden bg-slate-50 border-t border-slate-100 px-4 py-2 flex items-center justify-around overflow-x-auto gap-2">
+          <div className="lg:hidden bg-slate-50 border-t border-slate-100 px-4 py-2 flex items-center justify-start overflow-x-auto gap-2 max-w-full">
             {[
               { id: 'intro', label: lang === 'en' ? 'Home' : 'मुख्य' },
               { id: 'timeline', label: lang === 'en' ? 'Timeline' : 'यात्रा' },
               { id: 'gallery', label: lang === 'en' ? 'Gallery' : 'गैलरी' },
               { id: 'publications', label: lang === 'en' ? 'Pubs' : 'पुस्तकें' },
               { id: 'news', label: lang === 'en' ? 'Media' : 'समाचार' },
-              { id: 'achievements', label: lang === 'en' ? 'Awards' : 'पुरस्कार' }
+              { id: 'achievements', label: lang === 'en' ? 'Awards' : 'पुरस्कार' },
+              ...customPages.filter(p => p.isActive).map(p => ({
+                id: p.id,
+                label: lang === 'hi' ? p.titleHi || p.title : p.title
+              }))
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -843,10 +1066,10 @@ export default function App() {
                   setActiveTab(tab.id as any);
                   playBubbleSound();
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                   activeTab === tab.id
                     ? currentTabTheme.mobileBgActive
-                    : 'text-slate-500'
+                    : 'text-slate-500 hover:bg-slate-100/50'
                 }`}
               >
                 {tab.label}
@@ -982,109 +1205,6 @@ export default function App() {
             )}
           </AnimatePresence>
         </header>
-      ) : (
-        /* Minimalist transparent overlay header for modern full-page intro design */
-        <div id="floating-intro-bar" className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between z-45 relative select-none">
-          {/* Logo brand */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md rounded-2xl border border-white/50 dark:border-slate-800/40 shadow-xs">
-            <span className="text-xl">🧩</span>
-            <div className="text-left">
-              <h1 className="font-extrabold text-[12px] text-slate-900 dark:text-white tracking-tight leading-none">
-                {lang === 'en' ? 'Chandrashekhar Gautam' : 'चंद्रशेखर गौतम'}
-              </h1>
-              <p className="text-[9px] text-teal-600 dark:text-teal-400 font-bold tracking-wide mt-0.5 uppercase leading-none">
-                {t.specialTeacherHub}
-              </p>
-            </div>
-          </div>
-
-          {/* Quick minimal buttons tray */}
-          <div className="flex items-center gap-2 px-2 py-1.5 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md rounded-2xl border border-white/50 dark:border-slate-800/40 shadow-xs">
-            {/* Elegant Color Theme Switcher Widget */}
-            <div className="flex items-center gap-1.5 bg-slate-100/65 dark:bg-slate-800/65 p-1 rounded-xl border border-slate-200/30 dark:border-slate-700/30 select-none">
-              {(['indigo', 'teal', 'rose', 'emerald', 'amber', 'violet'] as const).map((color) => {
-                const colorsMap = {
-                  indigo: 'bg-indigo-550 dark:bg-indigo-500 ring-indigo-400',
-                  teal: 'bg-teal-550 dark:bg-teal-500 ring-teal-400',
-                  rose: 'bg-rose-550 dark:bg-rose-500 ring-rose-400',
-                  emerald: 'bg-emerald-550 dark:bg-emerald-500 ring-emerald-400',
-                  amber: 'bg-amber-550 dark:bg-amber-500 ring-amber-400',
-                  violet: 'bg-violet-550 dark:bg-violet-500 ring-violet-400'
-                };
-                const isActive = themeTabColor === color;
-                return (
-                  <button
-                    key={color}
-                    onClick={() => {
-                      setThemeTabColor(color);
-                      localStorage.setItem('theme_tab_color', color);
-                      playBubbleSound();
-                    }}
-                    className={`w-3 h-3 rounded-full ${colorsMap[color]} cursor-pointer transition-all duration-300 hover:scale-130 ${
-                      isActive ? 'ring-2 ring-offset-1 dark:ring-offset-slate-900 ring-slate-800 dark:ring-white scale-115 shadow-sm' : 'opacity-65 hover:opacity-100'
-                    }`}
-                    title={`Theme: ${color}`}
-                  />
-                );
-              })}
-            </div>
-
-            {/* Cinematic Space Intro welcome manual trigger */}
-            <button
-              onClick={() => {
-                sessionStorage.setItem('has_seen_cinematic', 'false');
-                setShowCinematic(true);
-                playSuccessChime();
-              }}
-              className="px-2 py-1 text-[9px] font-extrabold border border-indigo-500/10 text-indigo-700 dark:text-indigo-400 bg-indigo-50/50 hover:bg-indigo-100/60 rounded-xl cursor-pointer transition-all flex items-center gap-1"
-              title={lang === 'en' ? 'Watch Interactive Cinematic Space Intro' : 'इंटरएक्टिव स्पेस स्वागत देखें'}
-            >
-              <span>🌍</span>
-              <span className="font-bold uppercase tracking-wider">{lang === 'en' ? 'Intro' : 'कंसोल'}</span>
-            </button>
-
-            {/* Lang toggle */}
-            <button
-              onClick={() => {
-                const nextLang = lang === 'en' ? 'hi' : 'en';
-                setLang(nextLang);
-                localStorage.setItem('db_lang', nextLang);
-                playSuccessChime();
-              }}
-              className="px-2.5 py-1 text-[9px] font-extrabold border border-emerald-500/10 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 hover:bg-emerald-100/60 rounded-xl cursor-pointer transition-all flex items-center gap-1"
-              title={lang === 'en' ? 'हिंदी में बदलें' : 'Switch Language'}
-            >
-              <span>🌐</span>
-              <span className="font-bold uppercase tracking-wider">{lang === 'en' ? 'हिंदी' : 'EN'}</span>
-            </button>
-
-            {/* Mute toggle */}
-            <button
-              onClick={handleToggleMute}
-              className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
-                isMuted
-                  ? 'bg-slate-50 border-slate-200 text-slate-400'
-                  : 'bg-indigo-50 border-indigo-100 dark:border-indigo-900/40 text-indigo-650'
-              }`}
-              title={isMuted ? 'Unmute Feedback' : 'Mute Feedback'}
-            >
-              <DynamicIcon name={isMuted ? 'VolumeX' : 'Volume2'} size={13} />
-            </button>
-
-            {/* Admin Key Lock button */}
-            <button
-              onClick={() => {
-                setShowAdminPanel(true);
-                playSuccessChime();
-              }}
-              className="p-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl cursor-pointer transition-all flex items-center"
-              title="Admin Panel"
-            >
-              <DynamicIcon name="Lock" size={13} />
-            </button>
-          </div>
-        </div>
-      )}
 
 
       {/* 2. DYNAMIC WORKSPACE BODY CONTAINER COMPONENT SLIDER WITH ANIMATE PRESENCE FADE */}
@@ -1194,6 +1314,8 @@ export default function App() {
             homepageConfig={homepageConfig}
             customPages={customPages}
             poems={rahbarPoems}
+            feedbacks={feedbacks}
+            onDeleteFeedback={handleDeleteFeedback}
             onUpdateCustomPages={handleUpdateCustomPages}
             onUpdatePoems={handleUpdatePoems}
             activeThemeColor={themeTabColor}
@@ -1219,22 +1341,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 3.0 ANIMATED MAC OS DOCK NAVIGATION HUB (Linked Sections & Counters) */}
-      <DockMenu
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        lang={lang}
-        milestonesCount={milestones.length}
-        publicationsCount={publications.length}
-        newsCount={newsCuttings.length + videos.length}
-        galleryCount={slides.length}
-        achievementsCount={achievements.length}
-        onAdminToggle={() => setShowAdminPanel(!showAdminPanel)}
-        isAdminOpen={showAdminPanel}
-        activeThemeColor={themeTabColor}
-        customPages={customPages}
-      />
-
       {/* 3.1 GUIDED TOUR AND WELCOME MODAL CONTROLLER OVERLAYS */}
       <GuidedTour
         lang={lang}
@@ -1242,74 +1348,6 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
       />
-
-      {/* 3.2 SCROLL-PAL WALKING FLOATING KUNG-FU PANDA COMPANION */}
-      {activeTab !== 'intro' && (
-        <div className="fixed bottom-6 right-6 z-40 flex flex-col items-center gap-2">
-          <motion.div
-            initial={{ scale: 0, y: 50 }}
-            animate={{ scale: 1, y: 0 }}
-            transition={{ type: 'spring', delay: 1 }}
-            whileHover={{ scale: 1.1, translateY: -4 }}
-            className="relative bg-white/95 backdrop-blur-md p-2 rounded-full border border-slate-200 shadow-2xl flex items-center justify-center cursor-pointer group"
-          >
-            {/* Circular progress bar around scroll pal */}
-            <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none scale-102">
-              <circle
-                cx="50%"
-                cy="50%"
-                r="46%"
-                stroke="#f1f5f9"
-                strokeWidth="3"
-                fill="none"
-              />
-              <circle
-                cx="50%"
-                cy="50%"
-                r="46%"
-                stroke="url(#scrollGradient)"
-                strokeWidth="3"
-                fill="none"
-                strokeDasharray="283"
-                strokeDashoffset={283 - (283 * scrollPercent) / 100}
-                strokeLinecap="round"
-                className="transition-all duration-75"
-              />
-              <defs>
-                <linearGradient id="scrollGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#dc2626" />
-                  <stop offset="100%" stopColor="#fbbf24" />
-                </linearGradient>
-              </defs>
-            </svg>
-
-            {/* Interactive Panda Companion */}
-            <div className="w-18 h-20 flex items-center justify-center overflow-visible relative">
-              <InteractiveAvatar
-                pose={isScrolling ? 'walking' : 'stance'}
-                size={64}
-                lang={lang}
-                className="transform -translate-y-1.5"
-              />
-            </div>
-
-            {/* Mini Percentage Floating Tag */}
-            <span className="absolute -bottom-1 bg-gradient-to-r from-red-600 to-yellow-500 text-white font-black text-[8px] px-1.5 py-0.5 rounded-full border border-white shadow-xs leading-none">
-              {Math.round(scrollPercent)}%
-            </span>
-
-            {/* Floating Action Hint Bubble on Hover */}
-            <div className="absolute right-full mr-3.5 top-1/2 -translate-y-1/2 bg-slate-900/95 backdrop-blur-xs text-white text-[9px] font-black uppercase tracking-wider py-1.5 px-3 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md whitespace-nowrap pointer-events-none border border-white/10">
-              <span>{lang === 'en' ? 'Click to hit!' : 'मुक्का मारने के लिए क्लिक करें!'}</span>
-            </div>
-          </motion.div>
-
-          {/* Reading progress (Page X of Y) label below the percentage */}
-          <div className="bg-slate-900/95 backdrop-blur-md text-[#fbbf24] font-mono text-[9px] font-extrabold tracking-wider px-2 py-0.5 rounded-lg border border-white/15 shadow-xl select-none leading-none scale-95 transition-all duration-300">
-            {lang === 'en' ? `Page ${currentPage} of ${totalPages}` : `पृष्ठ ${currentPage} का ${totalPages}`}
-          </div>
-        </div>
-      )}
 
       {/* 4. FOOTER CREDENTIALS & COLORFUL LIVE VISITOR COUNTER */}
       <Footer
@@ -1320,6 +1358,9 @@ export default function App() {
         socialLinks={socialLinks}
         onSelectTab={setActiveTab}
       />
+
+      {/* 5. FLOATING FEEDBACK SYSTEM */}
+      <FeedbackWidget lang={lang} />
     </div>
   );
 }

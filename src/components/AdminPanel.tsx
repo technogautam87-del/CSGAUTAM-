@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { TimelineMilestone, Publication, NewsCutting, LiveVideo, Achievement, SliderPhoto, SocialLink, HomepageConfig, CustomPage } from '../types';
+import { TimelineMilestone, Publication, NewsCutting, LiveVideo, Achievement, SliderPhoto, SocialLink, HomepageConfig, CustomPage, FeedbackItem } from '../types';
 import { DynamicIcon, AVAILABLE_ACCENT_ICONS } from './DynamicIcon';
 import { playBubbleSound, playSuccessChime, playKeyTap, playErrorAlert } from '../audio';
 import { PoemItem } from './PoetryRahbarTab';
@@ -256,6 +256,9 @@ interface AdminPanelProps {
   onUpdateCustomPages?: (updated: CustomPage[]) => void;
   onUpdatePoems?: (updated: PoemItem[]) => void;
 
+  feedbacks?: FeedbackItem[];
+  onDeleteFeedback?: (id: string) => void;
+
   onClose: () => void;
   lang?: 'en' | 'hi';
   onForceRefresh?: () => Promise<boolean>;
@@ -290,6 +293,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onForceRefresh,
   activeThemeColor = 'indigo',
   onThemeColorChange,
+  feedbacks = [],
+  onDeleteFeedback,
 }) => {
   // Screen lock state
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -301,7 +306,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [refreshSuccess, setRefreshSuccess] = useState<boolean | null>(null);
 
   // Section selectors
-  const [activeAdminTab, setActiveAdminTab] = useState<'homepage' | 'timeline' | 'achievements' | 'publications' | 'slides' | 'social' | 'news' | 'videos' | 'customPages' | 'rahbar_poetry'>('homepage');
+  const [activeAdminTab, setActiveAdminTab] = useState<'homepage' | 'timeline' | 'achievements' | 'publications' | 'slides' | 'social' | 'news' | 'videos' | 'customPages' | 'rahbar_poetry' | 'feedback'>('homepage');
 
   // Custom pages form states
   const [editingPageId, setEditingPageId] = useState<string>('');
@@ -386,6 +391,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newPubLink, setNewPubLink] = useState<string>('');
   const [newPubDate, setNewPubDate] = useState<string>('2026-06-03');
   const [newPubAuthor, setNewPubAuthor] = useState<string>('Chandrashekhar Gautam');
+  const [newPubThumbnailUrl, setNewPubThumbnailUrl] = useState<string>('');
 
   // Form states - Social Links Add
   const [newSocName, setNewSocName] = useState<string>('');
@@ -868,7 +874,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       description: newPubDesc,
       link: newPubLink || 'https://example.com/resources',
       date: newPubDate,
-      author: newPubAuthor || 'Chandrashekhar Gautam'
+      author: newPubAuthor || 'Chandrashekhar Gautam',
+      thumbnailUrl: newPubThumbnailUrl || undefined
     };
 
     onUpdatePublications([...publications, added]);
@@ -877,6 +884,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setNewPubTitle('');
     setNewPubDesc('');
     setNewPubLink('');
+    setNewPubThumbnailUrl('');
   };
 
   const handleDeletePublication = (id: string) => {
@@ -1276,7 +1284,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   { key: 'videos', icon: 'Tv', label: 'Video Broadcast' },
                   { key: 'social', icon: 'Globe', label: 'Social Networks' },
                   { key: 'customPages', icon: 'PlusSquare', label: 'Manage Pages (कस्टम पेज)' },
-                  { key: 'rahbar_poetry', icon: 'Sparkles', label: 'रहबर काव्य (Poetry Config)' }
+                  { key: 'rahbar_poetry', icon: 'Sparkles', label: 'रहबर काव्य (Poetry Config)' },
+                  { key: 'feedback', icon: 'MessageSquare', label: 'User Feedbacks (फीडबैक)' }
                 ].map((item) => (
                   <button
                     key={item.key}
@@ -2564,6 +2573,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                       </div>
 
+                      <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100/60">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[10px] font-extrabold text-amber-800 uppercase flex items-center gap-1">
+                            🖼️ Publication Thumbnail Picture (प्रकाशन थंबनेल फोटो - Public Card Thumbnail)
+                          </label>
+                          <SingleClickUpload
+                            onUploadSuccess={(url) => setNewPubThumbnailUrl(url)}
+                            accept="image/*"
+                            labelEn="Upload Photo"
+                            labelHi="थंबनेल अपलोड करें"
+                            className="scale-90 origin-right"
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Paste image URL here, or upload one using the button..."
+                          value={newPubThumbnailUrl}
+                          onChange={(e) => setNewPubThumbnailUrl(e.target.value)}
+                          className="w-full text-xs p-2.5 border rounded-xl bg-white mt-1.5 focus:ring-amber-200"
+                        />
+                      </div>
+
                       <div>
                         <label className="text-[10px] font-bold text-slate-400 uppercase">Brief Content Description Summary</label>
                         <textarea
@@ -2689,6 +2720,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 />
                               </div>
 
+                              <div className="bg-amber-50/30 p-2.5 rounded-xl border border-amber-100/40">
+                                <div className="flex justify-between items-center pb-0.5">
+                                  <label className="text-[9px] font-bold text-amber-800 block">🖼️ Thumbnail Image URL (थंबनेल चित्र लिंक)</label>
+                                  <SingleClickUpload
+                                    onUploadSuccess={(url) => {
+                                      const updated = publications.map(pub => pub.id === p.id ? { ...pub, thumbnailUrl: url } : pub);
+                                      onUpdatePublications(updated);
+                                    }}
+                                    accept="image/*"
+                                    labelEn="Upload Thumbnail"
+                                    labelHi="थंबनेल अपलोड"
+                                    className="scale-90 origin-right"
+                                  />
+                                </div>
+                                <input
+                                  type="text"
+                                  placeholder="https://example.com/thumbnail.png"
+                                  value={p.thumbnailUrl || ''}
+                                  onChange={(e) => {
+                                    const updated = publications.map(pub => pub.id === p.id ? { ...pub, thumbnailUrl: e.target.value } : pub);
+                                    onUpdatePublications(updated);
+                                  }}
+                                  className="w-full text-xs p-2 border rounded-xl bg-white font-mono focus:bg-white"
+                                />
+                              </div>
+
                               <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
                                 <span className="text-[9px] text-emerald-600 font-extrabold flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -2758,7 +2815,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="md:col-span-2">
-                            <label className="text-[10px] font-black text-amber-800 uppercase tracking-wider block">Image URL (चित्र का लिंक)</label>
+                            <div className="flex items-center justify-between">
+                              <label className="text-[10px] font-black text-amber-800 uppercase tracking-wider block">Image URL (चित्र का लिंक)</label>
+                              <SingleClickUpload
+                                onUploadSuccess={(url) => setEditingSlideUrl(url)}
+                                accept="image/*"
+                                labelEn="Upload Photo"
+                                labelHi="फोटो अपलोड करें"
+                                className="scale-90 origin-right"
+                              />
+                            </div>
                             <input
                               type="text"
                               required
@@ -2817,7 +2883,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="md:col-span-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block animate-pulse">Photo URL Link (तस्वीर का वेब लिंक)</label>
+                            <div className="flex items-center justify-between">
+                              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block animate-pulse">Photo URL Link (तस्वीर का वेब लिंक)</label>
+                              <SingleClickUpload
+                                onUploadSuccess={(url) => setNewSlideUrl(url)}
+                                accept="image/*"
+                                labelEn="Upload Photo"
+                                labelHi="फोटो अपलोड करें"
+                                className="scale-90 origin-right"
+                              />
+                            </div>
                             <input
                               type="text"
                               required
@@ -4241,6 +4316,110 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                          </div>
                        ))}
                      </div>
+                  </div>
+                )}
+
+                {/* 6. USER FEEDBACKS (फीडबैक प्रबंधन) */}
+                {activeAdminTab === 'feedback' && (
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4 border-b pb-2 flex justify-between items-center">
+                      <span>User Feedback & Suggestions (फीडबैक सूची)</span>
+                      <span className="text-xs text-slate-400 font-normal">({feedbacks.length} Total Feedbacks)</span>
+                    </h4>
+
+                    {feedbacks.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center text-center py-16 space-y-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        <span className="text-4xl">💬</span>
+                        <div>
+                          <p className="text-sm font-black text-slate-700">No feedbacks submitted yet</p>
+                          <p className="text-xs text-slate-450 mt-1">When visitors leave feedback using the floating button, they will appear here in real-time!</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* Summary Stats */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                          <div className="bg-gradient-to-br from-indigo-500/5 to-indigo-500/10 p-4 rounded-2xl border border-indigo-500/10 text-left">
+                            <span className="text-[10px] font-extrabold text-indigo-700 uppercase tracking-wider block">Average Rating</span>
+                            <span className="text-2xl font-black text-indigo-950 mt-1 block">
+                              {(feedbacks.reduce((acc, curr) => acc + curr.rating, 0) / feedbacks.length).toFixed(1)} / 5.0
+                            </span>
+                          </div>
+                          <div className="bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 p-4 rounded-2xl border border-emerald-500/10 text-left">
+                            <span className="text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider block">Excellent (5★)</span>
+                            <span className="text-2xl font-black text-emerald-950 mt-1 block">
+                              {feedbacks.filter(f => f.rating === 5).length} feedbacks
+                            </span>
+                          </div>
+                          <div className="bg-gradient-to-br from-amber-500/5 to-amber-500/10 p-4 rounded-2xl border border-amber-500/10 text-left">
+                            <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider block">All Feedbacks</span>
+                            <span className="text-2xl font-black text-slate-900 mt-1 block">
+                              {feedbacks.length} total
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Feedback List Card */}
+                        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                          {feedbacks.map((fb) => (
+                            <div key={fb.id} className="p-4 bg-white rounded-2xl border border-slate-100/80 hover:border-slate-200 hover:shadow-xs transition-all relative group text-left">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-50 pb-2.5 mb-2.5">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-extrabold text-sm text-slate-700 uppercase">
+                                    {fb.name.charAt(0)}
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-extrabold text-slate-800 leading-none">{fb.name}</p>
+                                    {fb.email && <p className="text-[10px] text-slate-450 mt-1 font-mono">{fb.email}</p>}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                  {/* Visual Stars */}
+                                  <div className="flex items-center gap-0.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <DynamicIcon
+                                        key={star}
+                                        name="Star"
+                                        size={12}
+                                        className={star <= fb.rating ? 'text-amber-500 fill-amber-400' : 'text-slate-200'}
+                                      />
+                                    ))}
+                                  </div>
+
+                                  <span className="text-[10px] text-slate-400 font-medium">
+                                    {fb.date ? new Date(fb.date).toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-US', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric'
+                                    }) : ''}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <p className="text-xs text-slate-600 leading-relaxed bg-slate-50/40 p-2.5 rounded-xl border border-slate-100/30 whitespace-pre-line font-medium">
+                                {fb.message}
+                              </p>
+
+                              {/* Delete feedback action */}
+                              <button
+                                onClick={() => {
+                                  if (onDeleteFeedback) {
+                                    if (confirm(lang === 'hi' ? 'क्या आप इस फीडबैक को हटाना चाहते हैं?' : 'Are you sure you want to delete this feedback?')) {
+                                      onDeleteFeedback(fb.id);
+                                    }
+                                  }
+                                }}
+                                className="absolute top-4 right-4 p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                title="Delete Feedback"
+                              >
+                                <DynamicIcon name="Trash2" size={13} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
